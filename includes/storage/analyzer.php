@@ -65,7 +65,7 @@ abstract class SQLAnalyzer {
   public function __construct(Query $query) {
     $this->comments =& $query->getComments();
     $this->table = self::escapeName($query->getTable());
-    $this->parameter = $query->getParameter();
+    $this->parameter = $query->parameter();
   }
   
   /**
@@ -295,7 +295,7 @@ class SQLInsertAnalyzer extends SQLAnalyzer {
     
     $this->fields =& $query->getFields();
     $this->values =& $query->getValues();
-    $this->fromQuery = $query->getSelect();
+    $this->fromQuery = $query->select();
     
     $this->parameter->addParam('ins'. count($this->values));
   }

@@ -43,9 +43,9 @@ abstract class Query {
    * @param string $table
    * @param QueryParameter $parameter
    */
-  public function __construct($table, QueryParameter $parameter) {
+  public function __construct($table, QueryParameter $parameter = NULL) {
     $this->table = $table;
-    $this->parameter = $parameter;
+    $this->parameter = isset($parameter) ? $parameter : new QueryParameter();
   }
   
   /**
@@ -67,7 +67,7 @@ abstract class Query {
    * 
    * @return QueryParameter
    */
-  final public function getParameter() {
+  final public function parameter() {
     return $this->parameter;
   }
 
@@ -611,7 +611,7 @@ class InsertQuery extends Query {
   /**
    * @var SelectQuery
    */
-  protected $query;
+  protected $queryFrom;
 
   /**
    * (non-PHPdoc)
@@ -698,7 +698,7 @@ class InsertQuery extends Query {
    * @return Query
    */
   public function from(SelectQuery $query) {
-    $this->query = $query;
+    $this->queryFrom = $query;
     
     return $this;
   }
@@ -728,8 +728,8 @@ class InsertQuery extends Query {
    * 
    * @return SelectQuery
    */
-  final public function getSelect() {
-    return $this->query;
+  final public function select() {
+    return $this->queryFrom;
   }
 
   /**
@@ -784,12 +784,11 @@ class UpdateQuery extends Query {
    * 构造一个更新查询
    * 
    * @param string $table
-   * @param QueryParameter $parameter
    */
-  public function __construct($table, QueryParameter $parameter) {
-    parent::__construct($table, $parameter);
+  public function __construct($table) {
+    parent::__construct($table);
     
-    $this->condition = new QueryCondition($parameter, $this);
+    $this->condition = new QueryCondition($this->parameter, $this);
   }
 
   /**
@@ -922,12 +921,11 @@ class DeleteQuery extends Query {
    * 构造一个插入查询
    * 
    * @param string $table
-   * @param QueryParameter $parameter
    */
-  public function __construct($table, QueryParameter $parameter) {
-    parent::__construct($table, $parameter);
+  public function __construct($table) {
+    parent::__construct($table);
     
-    $this->condition = new QueryCondition($parameter, $this);
+    $this->condition = new QueryCondition($this->parameter, $this);
   }
 
   /**
@@ -1180,11 +1178,11 @@ class SelectQuery extends Query {
    * @param string $table 数据表
    * @param QueryParameter $parameter
    */
-  public function __construct($table, QueryParameter $parameter) {
+  public function __construct($table, QueryParameter $parameter = NULL) {
     parent::__construct($table, $parameter);
     
-    $this->condition = new QueryCondition($parameter, $this);
-    $this->having = new QueryCondition($parameter, $this);
+    $this->condition = new QueryCondition($this->parameter, $this);
+    $this->having = new QueryCondition($this->parameter, $this);
   }
 
   /**
@@ -1452,7 +1450,7 @@ class MultiSelectQuery extends SelectQuery implements MultiSelectQueryInterface 
    * @param string $alias
    * @param QueryParameter $parameter
    */
-  public function __construct($table, $alias, QueryParameter $parameter) {
+  public function __construct($table, $alias, QueryParameter $parameter = NULL) {
     // TODO Auto-generated method stub
     parent::__construct($table, $parameter);
     

@@ -53,7 +53,7 @@ $datatables['realeff'] = array(
 $cache_devnum = 1;
 
 // 第三方应用提供的API类库目录
-$library_dir = 'libraries1';
+$library_dir = 'libraries';
 
 // 扩展模块目录
 $extension_dir = 'extension';

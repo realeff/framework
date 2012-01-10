@@ -6,13 +6,23 @@ abstract class Store {
   
   static protected $connections = array();
   
-  
+  /**
+   * 
+   * 
+   * @return 
+   */
   static public function connection() {
     
   }
   
-  
-  static public function command($table) {
+  /**
+   * 
+   * @param string $name
+   * @param Query $query
+   * 
+   * @return StoreCommand
+   */
+  static public function command($name, Query $query) {
     
   }
   
@@ -23,7 +33,7 @@ abstract class Store {
    * 
    * @return StoreSchema
    */
-  public function createTable($table) {
+  static public function createTable($table) {
     return new StoreSchema($table, StoreSchema::ACTION_CREATE);
   }
   
@@ -34,7 +44,7 @@ abstract class Store {
    * 
    * @return StoreSchema
    */
-  public function dropTable($table) {
+  static public function dropTable($table) {
     return new StoreSchema($table, StoreSchema::ACTION_DROP);
   }
   
@@ -45,7 +55,7 @@ abstract class Store {
    * 
    * @return StoreSchema
    */
-  public function alterTable($table) {
+  static public function alterTable($table) {
     return new StoreSchema($table, StoreSchema::ACTION_ALTER);
   }
   
@@ -56,19 +66,30 @@ abstract class Store {
    * 
    * @return StoreSchema
    */
-  public function existsTable($table) {
+  static public function existsTable($table) {
     return new StoreSchema($table, StoreSchema::ACTION_EXISTS);
+  }
+  
+  /**
+   * 
+   * @param QueryParameter $parameter
+   * 
+   * @return QueryCondition
+   */
+  static public function condition(QueryParameter $parameter) {
+    return new QueryCondition($parameter);
   }
   
   /**
    * 查询数据
    *
    * @param string $table 数据表
+   * @param QueryParameter $parameter 数据参数
    *
    * @return SelectQuery
    */
-  static public function select($table) {
-    return new SelectQuery($table);
+  static public function select($table, QueryParameter $parameter = NULL) {
+    return new SelectQuery($table, $parameter);
   }
   
   /**
@@ -76,11 +97,12 @@ abstract class Store {
    *
    * @param string $table 数据表
    * @param string $alias 表别名
+   * @param QueryParameter $parameter 数据参数
    *
    * @return MultiSelectQuery
    */
-  static public function select_multi($table, $alias) {
-    return new MultiSelectQuery($table, $alias);
+  static public function select_multi($table, $alias, QueryParameter $parameter = NULL) {
+    return new MultiSelectQuery($table, $alias, $parameter);
   }
   
   /**
@@ -120,19 +142,12 @@ abstract class Store {
    * 插入更新数据，此方法会先检查指定数据是否存在，如果不存在则插入数据，如果存在则更新数据。
    *
    * @param string $table 数据表
+   * @param QueryParameter $parameter 数据参数
    *
    * @return InsertQuery
    */
   static public function insert_update($table) {
     return new ReplaceQuery($table);
-  }
-  
-  static public function execute() {
-    
-  }
-  
-  static public function result() {
-    
   }
 }
 
@@ -260,12 +275,28 @@ abstract class StoreConnection {
    */
   abstract public function version();
   
+  /**
+   * 
+   * @return boolean
+   */
   abstract public function beginTransaction();
   
+  /**
+   * 
+   * @return boolean
+   */
   abstract public function inTransaction();
   
+  /**
+   * 
+   * @return boolean
+   */
   abstract public function rollback();
   
+  /**
+   * 
+   * @return boolean
+   */
   abstract public function commit();
 }
 
@@ -326,11 +357,11 @@ abstract class StoreCommand {
   /**
    * 准备执行查询
    * 
-   * @param Query $query 查询器
+   * @param SelectQuery $query 查询器
    * 
    * @return StoreStatementInterface
    */
-  abstract public function prepare(Query $query);
+  abstract public function prepare(SelectQuery $query);
 
   /**
    * 获取最后插入数据主键ID
@@ -471,7 +502,7 @@ class StoreSchema {
    */
   protected function defaultAttributes() {
     static $attributes = array(
-        'type' => NULL,
+        'type' => self::TYPE_INT,
         'size' => NULL,
         'length' => NULL,
         'precision' => NULL,
