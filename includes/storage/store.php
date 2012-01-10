@@ -307,6 +307,9 @@ abstract class StoreCommand {
    * 在指定存储设备上操作数据存储结构
    * 
    * @param StoreSchema $schema
+   * 
+   * @return boolean
+   *   在存储设备上执行数据结构操作成功返回TRUE，失败返回FALSE。
    */
   abstract public function schema(StoreSchema $schema);
 
@@ -329,12 +332,32 @@ abstract class StoreCommand {
    */
   abstract public function prepare(Query $query);
 
+  /**
+   * 获取最后插入数据主键ID
+   * 
+   * @return integer
+   */
   abstract public function lastInsertId();
   
+  /**
+   * 查询操作所影响的行数
+   * 
+   * @return integer
+   */
   abstract public function affected_rows();
   
+  /**
+   * 返回错误代码
+   * 
+   * @return integer
+   */
   abstract public function errorCode();
   
+  /**
+   * 返回错误信息
+   * 
+   * @return string
+   */
   abstract public function errorInfo();
 }
 
@@ -431,6 +454,14 @@ class StoreSchema {
     $this->table = $table;
     $this->action = $action;
   }
+  
+  public function getTable() {
+    return $this->table;
+  }
+  
+  public function getAction() {
+    return $this->action;
+  }
 
   
   /**
@@ -468,6 +499,10 @@ class StoreSchema {
     
     return $this;
   }
+  
+  public function &getFields() {
+    return $this->fields;
+  }
 
   /**
    * 
@@ -482,6 +517,9 @@ class StoreSchema {
     return $this;
   }
 
+  public function &getIndexs() {
+    return $this->indexs;
+  }
 
   /**
    * 
@@ -495,6 +533,10 @@ class StoreSchema {
     return $this;
   }
 
+  public function &getPrimary() {
+    return $this->primary;
+  }
+  
   /**
    * 
    * @param string $name
@@ -508,17 +550,10 @@ class StoreSchema {
     return $this;
   }
   
-  /**
-   * 执行存储结构操作
-   *
-   * @return boolean
-   *   执行成功返回TRUE，失败返回FALSE。
-   */
-  abstract public function execute();
+  public function &getUniques() {
+    return $this->uniques;
+  }
   
-  abstract public function errorCode();
-  
-  abstract public function errorInfo();
 }
 
 
