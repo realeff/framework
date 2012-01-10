@@ -287,7 +287,7 @@ class SQLInsertAnalyzer extends SQLAnalyzer {
    * 
    * @var SelectQuery
    */
-  protected $fromQuery;
+  protected $queryFrom;
   
   
   public function __construct(InsertQuery $query) {
@@ -295,7 +295,7 @@ class SQLInsertAnalyzer extends SQLAnalyzer {
     
     $this->fields =& $query->getFields();
     $this->values =& $query->getValues();
-    $this->fromQuery = $query->select();
+    $this->queryFrom = $query->select();
     
     $this->parameter->addParam('ins'. count($this->values));
   }
@@ -306,7 +306,7 @@ class SQLInsertAnalyzer extends SQLAnalyzer {
    * @return SelectSQLAnalyzer
    */
   public function fromSQLAnalyzer() {
-    return new SQLSelectAnalyzer($this->fromQuery);
+    return new SQLSelectAnalyzer($this->queryFrom);
   }
   
   /**
@@ -331,7 +331,7 @@ class SQLInsertAnalyzer extends SQLAnalyzer {
    */
   public function toString() {
     // TODO Auto-generated method stub
-    if (!empty($this->fromQuery)) {
+    if (!empty($this->queryFrom)) {
       return 'INSERT INTO {'. $this->table .'} ('. implode(', ', $this->fields) .') '. $this->fromSQLAnalyzer();
     }
     
