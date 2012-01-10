@@ -470,14 +470,7 @@ class QueryCondition implements IteratorAggregate, Countable {
    * @return QueryCondition
    */
   public function compare($field, $value, $operator = self::EQUAL) {
-    if (is_array($value)) {
-      foreach ($value as $key => $val) {
-        $value[$key] = $this->parameter->add($field, $val);
-      }
-    }
-    else {
-      $value = $this->parameter->add($field, $value);
-    }
+    $value = $this->parameter->add($field, $value);
     
     $this->_current->condition($field, $value, $operator);
     
@@ -516,9 +509,7 @@ class QueryCondition implements IteratorAggregate, Countable {
     }
     else {
       $value = is_array($value) ? $value : array($value);
-      foreach ($value as $key => $val) {
-        $value[$key] = $this->parameter->add($field, $val);
-      }
+      $value = $this->parameter->add($field, $value);
       
       $this->_current->condition($field, $value, ($flag ? self::IN : self::NOT_IN));
     }
