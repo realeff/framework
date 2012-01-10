@@ -4,33 +4,11 @@ class SQLInsertAnalyzer_mysql extends SQLInsertAnalyzer {
 
   /**
    * (non-PHPdoc)
-   * @see SQLInsertAnalyzer::arguments()
-   */
-  public function arguments() {
-    // TODO Auto-generated method stub
-    if (!empty($this->fromQuery)) {
-      return $this->fromSQLAnalyzer()->arguments();
-    }
-    
-    $arguments = array();
-    foreach ($this->values as $id => $values) {
-      $values += $this->defaults;
-      
-      foreach ($this->fields as $key => $field) {
-        $arguments[':'. $field .'_'. $id] = $values[$key];
-      }
-    }
-    
-    return $arguments;
-  }
-
-  /**
-   * (non-PHPdoc)
    * @see SQLInsertAnalyzer::toString()
    */
   public function toString() {
     // TODO Auto-generated method stub
-    if (!empty($this->fromQuery)) {
+    if (!empty($this->queryFrom)) {
       return 'INSERT INTO {'. $this->table .'} ('. implode(', ', $this->fields) .') '. $this->fromSQLAnalyzer();
     }
     
@@ -44,17 +22,15 @@ class SQLInsertAnalyzer_mysql extends SQLInsertAnalyzer {
     }
     
     $values = array();
-    $count = count($this->values);
-    for($id = 0; $id < $count; $id++){
+    foreach ($this->values as $values) {
       $placeholders = array();
-      foreach ($fields as $key => $field) {
-        $placeholders[] = ':'. $field .'_'. $id;
+      foreach ($fields as $field) {
+        $placeholders[] = $values[$field];
       }
-      $values[] = '(' . implode(', ', $placeholders) . ')';
+      $values[] = '(:' . implode(', :', $placeholders) . ')';
     }
     
     return 'INSERT INTO {'. $this->table .'} ('. implode(', ', $fields) .') VALUES ' . implode(', ', $values);
   }
-
   
 }
