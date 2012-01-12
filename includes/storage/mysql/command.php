@@ -4,10 +4,9 @@
 class StoreCommand_mysql extends StoreCommand {
   
   
-  public function __construct(StoreConnection_mysql $conn, $query) {
-    parent::__construct($conn, $query);
+  public function __construct($command, StoreConnection_mysql $connection) {
+    parent::__construct($command, $connection);
   }
-  
 /* (non-PHPdoc)
  * @see StoreCommand::affected_rows()
  */
@@ -55,5 +54,14 @@ class StoreCommand_mysql extends StoreCommand {
     // TODO Auto-generated method stub
     
   }
+
+/* (non-PHPdoc)
+ * @see StoreCommand::quote()
+ */
+  public function quote($string, $type = NULL) {
+    // TODO Auto-generated method stub
+    
+  }
+
   
 }

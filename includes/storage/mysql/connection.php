@@ -47,37 +47,29 @@ class StoreConnection_mysql extends StoreConnection  {
   
   /**
    * 构造一个MYSQL链接
-   * @param array $conn_options
+   * @param array $options
    */
-  public function __construct(array $conn_options) {
-    if (isset($conn_options['sysname'])) {
-      $sysname = $conn_options['sysname'];
-      unset($conn_options['sysname']);
-    }
-    else {
-      $sysname = 'realeff';
-    }
-    parent::__construct($sysname);
+  public function __construct(array $options) {
+    parent::__construct($options);
     
     // The DSN should use either a socket or a host/port.
-    if (isset($conn_options['unix_socket'])) {
+    if (isset($options['unix_socket'])) {
       //$dsn = 'mysql:unix_socket=' . $conn_options['unix_socket'];
-      $dsn = $conn_options['unix_socket'];
+      $dsn = $options['unix_socket'];
     }
     else {
       // Default to TCP connection on port 3306.
       //$dsn = 'mysql:host=' . $conn_options['host'] . ';port=' . (empty($conn_options['port']) ? 3306 : $conn_options['port']);
-      $dsn = $conn_options['host'];
-      if (isset($conn_options['port'])) {
-        $dsn .= ':'. $conn_options['port'];
+      $dsn = $options['host'];
+      if (isset($options['port'])) {
+        $dsn .= ':'. $options['port'];
       }
     }
     $this->dsn = $dsn;
-    $this->username = $conn_options['username'];
-    $this->password = $conn_options['password'];
+    $this->username = $options['username'];
+    $this->password = $options['password'];
     //$dsn .= ';dbname=' . $conn_options['dbname'];
-    $this->dbname = $conn_options['dbname'];
-    $this->options = $conn_options;
+    $this->dbname = $options['dbname'];
   }
   
   /**
@@ -100,9 +92,9 @@ class StoreConnection_mysql extends StoreConnection  {
 
   /**
    * (non-PHPdoc)
-   * @see StoreConnection::openConnection()
+   * @see StoreConnection::open()
    */
-  public function openConnection() {
+  public function open() {
     // TODO Auto-generated method stub
     $this->resource = @mysql_connect($this->dsn, $this->username, $this->password, TRUE, MYSQL_NUM);
     if (!$this->resource || !mysql_select_db($this->dbname)) {
@@ -124,9 +116,9 @@ class StoreConnection_mysql extends StoreConnection  {
   
   /**
    * (non-PHPdoc)
-   * @see StoreConnection::closeConnection()
+   * @see StoreConnection::close()
    */
-  public function closeConnection() {
+  public function close() {
     // TODO Auto-generated method stub
     return mysql_close($this->resource);
   }
@@ -145,7 +137,7 @@ class StoreConnection_mysql extends StoreConnection  {
    */
   public function command($command) {
     // TODO Auto-generated method stub
-    return new StoreCommand_mysql($this, $command);
+    return new StoreCommand_mysql($command, $this);
   }
 
 /* (non-PHPdoc)
