@@ -508,8 +508,10 @@ class QueryCondition implements IteratorAggregate, Countable {
       $this->_current->condition($field, $value, ($flag ? self::LIKE : self::NOT_LIKE));
     }
     else {
-      $value = is_array($value) ? $value : array($value);
-      $value = $this->parameter->add($field, $value);
+      if (!($value instanceof SelectQuery)) {
+        $value = is_array($value) ? $value : array($value);
+        $value = $this->parameter->add($field, $value);
+      }
       
       $this->_current->condition($field, $value, ($flag ? self::IN : self::NOT_IN));
     }
