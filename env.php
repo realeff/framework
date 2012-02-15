@@ -13,21 +13,14 @@ echo "</pre>\n";
 //print htmlentities(var_export($_ENV, TRUE));
 
 include_once RESYS_ROOT .'/includes/storage/store.php';
-include_once RESYS_ROOT .'/includes/storage/query.php';
-include_once RESYS_ROOT .'/includes/storage/analyzer.php';
-include_once RESYS_ROOT .'/includes/storage/mysql/connection.php';
-include_once RESYS_ROOT .'/includes/storage/mysql/command.php';
-include_once RESYS_ROOT .'/includes/storage/mysql/analyzer.php';
 
 $basememory = memory_get_usage();
-$conn = new StoreConnection_mysql(array('host' => 'localhost', 'username' => 'root', 'password' => '123', 'dbname' => 'test'));
-$conn->openConnection();
+$conn = Store::getConnection();
 
 $cmd = $conn->command('test');
 $firstmemory = memory_get_usage();
 function testmem($cmd) {
-$param = new QueryParameter('test');
-$query = new UpdateQuery('test', $param);
+$query = new UpdateQuery('test');
 $query->fields(array('field0' => 'value0', 'field1' => 'value1', 'field2' => 'value2'));
 $query->condition()
 ->compare('a', '1', '=')
@@ -53,13 +46,13 @@ $firstmemory = memory_get_usage();
 
 function testmquery($cmd) {
   
-  $param = new QueryParameter('test');
-  $query = new SelectQuery('test', $param);
+  $mquery = new MultiSelectQuery('test', 't');
+  $query = new SelectQuery('test', $mquery->parameter());
   $query->fields(array('field0' => 'value0', 'field1' => 'value1', 'field2' => 'value2'));
   $query->condition()
   ->compare('a', '1', '=')
   ->contain('b', '%abc%');
-  $mquery = new MultiSelectQuery('test', 't', $param);
+  
   $mquery->field('abc')->field('ddd')->field('bdd');
   $mquery->innerJoin('abc', 'dd', '')->addField('dd', 'bdc', 'bccd');
   $mquery->innerJoin($query, 'subquery', '')->addField('subquery', 'dbc');
@@ -92,6 +85,18 @@ print timer_read('test') .'<br>';
 print $firstmemory-$basememory .'<br>';
 print memory_get_usage()-$basememory .'<br>';
 print memory_get_usage();
+
+// 切换应用平台
+/**
+switchSystem('default');
+switchPlatform('default');
+$cmd = getCommand('cmdname');
+$cmd->insert();
+$cmd->update();
+$cmd->delete();
+$cmd->select();
+$cmd->query();
+**/
 
 
 
