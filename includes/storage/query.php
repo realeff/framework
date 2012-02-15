@@ -43,9 +43,9 @@ abstract class Query {
    * @param string $table
    * @param StoreParameter $parameter
    */
-  public function __construct($table, StoreParameter $parameter) {
+  public function __construct($table, StoreParameter $parameter = NULL) {
     $this->table = $table;
-    $this->parameter = $parameter;
+    $this->parameter = isset($parameter) ? $parameter : new StoreParameter();
   }
   
   /**
@@ -786,7 +786,7 @@ class UpdateQuery extends Query {
    * @param string $table
    * @param StoreParameter $parameter
    */
-  public function __construct($table, StoreParameter $parameter) {
+  public function __construct($table, StoreParameter $parameter = NULL) {
     parent::__construct($table, $parameter);
     
     $this->condition = new QueryCondition($this->parameter, $this);
@@ -924,7 +924,7 @@ class DeleteQuery extends Query {
    * @param string $table
    * @param StoreParameter $parameter
    */
-  public function __construct($table, StoreParameter $parameter) {
+  public function __construct($table, StoreParameter $parameter = NULL) {
     parent::__construct($table, $parameter);
     
     $this->condition = new QueryCondition($this->parameter, $this);
@@ -1180,7 +1180,7 @@ class SelectQuery extends Query {
    * @param string $table 数据表
    * @param StoreParameter $parameter
    */
-  public function __construct($table, StoreParameter $parameter) {
+  public function __construct($table, StoreParameter $parameter = NULL) {
     parent::__construct($table, $parameter);
     
     $this->condition = new QueryCondition($this->parameter, $this);
@@ -1452,7 +1452,7 @@ class MultiSelectQuery extends SelectQuery implements MultiSelectQueryInterface 
    * @param string $alias
    * @param StoreParameter $parameter
    */
-  public function __construct($table, $alias, StoreParameter $parameter) {
+  public function __construct($table, $alias, StoreParameter $parameter = NULL) {
     // TODO Auto-generated method stub
     parent::__construct($table, $parameter);
     

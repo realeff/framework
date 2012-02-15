@@ -188,6 +188,8 @@ abstract class Store {
    * 获取当前系统指定目标链接资源
    * 
    * @param string $target 链接目标
+   * 
+   * @return StoreConnection
    */
   final static public function getConnection($target = 'default') {
     $system = self::$activeSystem;
