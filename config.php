@@ -10,13 +10,14 @@ $databases['realeff'] = array(
       'username' => '',
       'password' => '',
       'prefix' => 'main_',
-      'exprefix' => array(
+      'prefix_exts' => array(
           'session' => 'shared_',
           'authmap' => 'shared_'
           ),
       'collation' => 'utf8_general_ci',
       ),
-  'slave0' => array(
+  'slave' => array(
+    array(
       'driver' => 'mysql',
       'dbname' => '',
       'host' => '',
@@ -26,7 +27,7 @@ $databases['realeff'] = array(
       'prefix' => 'main_',
       'collation' => 'utf8_general_ci',
       ),
-  'slave1' => array(
+    array(
       'driver' => '',
       'dbname' => '',
       'host' => '',
@@ -36,21 +37,15 @@ $databases['realeff'] = array(
       'prefix' => 'main_',
       'collation' => 'utf8_general_ci',
       )
+  )
 );
 $databases['othersys'] = array();
 
-
-// 默认使用default数据库的定义，
-$datatables['realeff'] = array(
-  'role' => 'user',
-  'user' => array(
-      'read' => 'user',
-      'write' => 'default',
-      ),
+// 存储命令
+$databases['realeff']['command'] = array(
+  'cache' => 'slave',
+  'site' => 'slave'
 );
-
-// 缓存设备数量
-$cache_devnum = 1;
 
 // 第三方应用提供的API类库目录
 $library_dir = 'libraries';
