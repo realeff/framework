@@ -236,12 +236,11 @@ global $multisites;
  * 引导程序初始化RealEff系统配置
  */
 function _realeff_init_config() {
-global $databases, $datatables, $cache_devnum, $multisites, $auth_key, $cookie_domain, $library_dir, $extension_dir, $config;
+global $databases, $multisites, $auth_key, $cookie_domain, $library_dir, $extension_dir, $config;
 
   // 允许设置以下变量
-  $databases = $datatables = $multisites = $config = array();
+  $databases = $multisites = $config = array();
   $library_dir = $extension_dir = $cookie_domain = $auth_key = '';
-  $cache_devnum = 1;
 
   if (file_exists(RESYS_ROOT .'/config.php')) {
     include_once RESYS_ROOT .'/config.php';

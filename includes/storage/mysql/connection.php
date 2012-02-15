@@ -122,14 +122,6 @@ class StoreConnection_mysql extends StoreConnection  {
     // TODO Auto-generated method stub
     return mysql_close($this->resource);
   }
-  
-  /**
-   * (non-PHPdoc)
-   * @see StoreConnection::getConnection()
-   */
-  public function getConnection() {
-    return $this->resource;
-  }
 
   /**
    * (non-PHPdoc)
@@ -137,7 +129,7 @@ class StoreConnection_mysql extends StoreConnection  {
    */
   public function command($command) {
     // TODO Auto-generated method stub
-    return new StoreCommand_mysql($command, $this);
+    return new StoreCommand_mysql($this, $command);
   }
 
 /* (non-PHPdoc)
@@ -165,38 +157,25 @@ class StoreConnection_mysql extends StoreConnection  {
     // TODO Auto-generated method stub
     return mysql_error($this->resource);
   }
-/* (non-PHPdoc)
- * @see StoreConnection::beginTransaction()
- */
-  public function beginTransaction() {
+
+  /**
+   * (non-PHPdoc)
+   * @see StoreConnection::quote()
+   */
+  public function quote($string, $type = NULL) {
     // TODO Auto-generated method stub
     
   }
 
-/* (non-PHPdoc)
- * @see StoreConnection::commit()
- */
-  public function commit() {
+
+  /**
+   * (non-PHPdoc)
+   * @see StoreConnection::schema()
+   */
+  public function schema() {
     // TODO Auto-generated method stub
     
   }
 
-/* (non-PHPdoc)
- * @see StoreConnection::inTransaction()
- */
-  public function inTransaction() {
-    // TODO Auto-generated method stub
-    
-  }
-
-/* (non-PHPdoc)
- * @see StoreConnection::rollback()
- */
-  public function rollback() {
-    // TODO Auto-generated method stub
-    
-  }
-
-  
 }
 

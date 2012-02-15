@@ -1,55 +1,296 @@
 <?php
 
+/**
+ * 存储驱动文件根路径
+ */
+define('STORE_DRIVER_PATH', dirname(__FILE__));
+
+include_once STORE_DRIVER_PATH .'/query.php';
+include_once STORE_DRIVER_PATH .'/analyzer.php';
+
 
 abstract class Store {
   
+  /**
+   * 激活的存储系统
+   * 
+   * @var string
+   */
+  static protected $activeSystem = 'realeff';
   
+  /**
+   * 链接存储器信息
+   * 
+   * @var array
+   */
+  static protected $connectionInfo = array();
+  
+  /**
+   * 链接资源
+   * 
+   * @var array
+   */
   static protected $connections = array();
   
   /**
+   * 添加自定义数据链接信息
    * 
-   * @param string $name 链接名称
-   * @param string $system 系统名称
-   * 
-   * @return StoreConnection
+   * @param string $system
+   * @param string $target
+   * @param array $info
    */
-  static public function connection($name = 'default', $system = 'realeff') {
-    
-  }
-  
-  static public function getConnection() {
-    
+  static public function addConnectionInfo($system, $target, $info) {
+    if (empty(self::$connectionInfo[$system][$target])) {
+      self::$connectionInfo[$system][$target] = $info;
+    }
   }
   
   /**
-   * 取得指定查询的数据存储命令
+   * 获取存储系统链接信息
+   */
+  final static public function getConnectionInfo($system) {
+    return isset(self::$connectionInfo[$system]) ? self::$connectionInfo[$system] : NULL;
+  }
+  
+  /**
+   * 切换存储系统
+   * 
+   * @param string $system 系统名称
+   * 
+   * @return string
+   *   返回前一个系统名
+   */
+  final static public function switchSystem($system = 'realeff') {
+    global $databases;
+    
+    if (empty($databases[$system])) {
+      throw new StoreSystemNotConfiguredException('没有配置指定存储系统：'. $system);
+    }
+    
+    // 解析存储系统配置信息
+    if (empty(self::$connectionInfo[$system])) {
+      if (is_array($databases[$system])) {
+        $databaseinfo = $databases[$system];
+      }
+      else {
+        if (is_string($databases[$system]))
+          return self::switchSystem($databases[$system]);
+        else 
+          return self::switchSystem();
+      }
+      
+      foreach ($databaseinfo as $key => $database) {
+        if ($key == 'command') {
+          continue;
+        }
+        
+        // 如果没有定义“driver”属性，这个数组就是一个存储器链接池定义，由系统在此链接池中取出一个连接。
+        if (empty($database['driver'])) {
+          $databaseinfo[$key] = $database[array_rand($database)];
+        }
+        
+        if (!isset($databaseinfo[$key]['prefix'])) {
+          $databaseinfo[$key]['prefix'] = '';
+        }
+      }
+      
+      if (empty($databaseinfo['command'])) {
+        $databaseinfo['command'] = array();
+      }
+      
+      self::$connectionInfo[$system] = $databaseinfo;
+    }
+    
+    $preSystem = self::$activeSystem;
+    if ($system != self::$activeSystem) {
+      self::$activeSystem = $system;
+    }
+    
+    return $preSystem;
+  }
+  
+  /**
+   * 复位存储系统
+   *
+   * @param string $system
+   *   系统名称，如果不指定则关闭所有系统链接。
+   */
+  static public function resetSystem($system = NULL) {
+    if (isset($system)) {
+      unset(self::$connectionInfo[$system], self::$connections[$system]);
+      self::switchSystem($system);
+    }
+    else {
+      self::$connectionInfo = array();
+      self::$connections = array();
+    }
+  }
+  
+  /**
+   * 加载存储驱动文件
+   * 
+   * @param string $driver
+   */
+  static protected function loadDriver($driver) {
+    static $drivers = array();
+    
+    if (isset($drivers[$driver])) {
+      return ;
+    }
+    
+    // 驱动文件包括
+    static $files = array(
+        'connection.php',
+        'command.php',
+        'schema.php',
+        'statement.php',
+        'analyzer.php'
+      );
+    
+    foreach ($files as $file) {
+      $filename = STORE_DRIVER_PATH ."/{$driver}/{$file}";
+      
+      if (file_exists($filename)) {
+        require_once $filename;
+      }
+    }
+    
+    $drivers[$driver] = TRUE;
+  }
+  
+  /**
+   * 建立新存储链接
+   * 
+   * @param string $target 链接标识
+   * @param array $options 链接选项
+   * 
+   * @return StoreConnection
+   */
+  static protected function connection($target, array $options) {
+    
+    if (empty($options['driver'])) {
+      throw new StoreDriverNotSpecifiedException('没有指定目标存储驱动：'. $target);
+    }
+    
+    // 装载驱动
+    self::loadDriver($options['driver']);
+    
+    // 实例化存储链接
+    $class = 'StoreConnection_'. $options['driver'];
+    $connection = new $class($options);
+    
+    // 日志功能
+    
+    return $connection;
+  }
+  
+  /**
+   * 获取当前系统指定目标链接资源
+   * 
+   * @param string $target 链接目标
+   */
+  final static public function getConnection($target = 'default') {
+    $system = self::$activeSystem;
+    // 如果目标链接不存在，则使用默认链接。
+    if (!isset(self::$connectionInfo[$system][$target])) {
+      $target = 'default';
+    }
+    
+    // 如果链接未建立，则打开新链接。
+    if (!isset(self::$connections[$system][$target])) {
+      self::openConnection($target);
+    }
+    
+    return self::$connections[$system][$target];
+  }
+  
+  /**
+   * 打开当前系统指定目标链接
+   * 
+   * @param string $target 链接目标
+   */
+  static public function openConnection($target) {
+    if (empty(self::$connectionInfo)) {
+      self::switchSystem();
+    }
+    
+    $system = self::$activeSystem;
+    if (empty(self::$connectionInfo[$system][$target])) {
+      throw new StoreConnectionNotDefinedException('没有定义目标存储链接：'. $target);
+    }
+    
+    if (!isset(self::$connections[$system][$target])) {
+      self::$connections[$system][$target] = self::connection($target, self::$connectionInfo[$system][$target]);
+    }
+    
+    return self::$connections[$system][$target];
+  }
+  
+  /**
+   * 关闭当前系统指定的目标链接
+   * 
+   * @param string $target
+   *   目标链接，如果不指定则关闭当前系统所有链接。
+   */
+  static public function closeConnection($target = NULL) {
+    if (isset($target)) {
+      unset(self::$connections[self::$activeSystem][$target]);
+    }
+    else {
+      unset(self::$connections[self::$activeSystem]);
+    }
+  }
+  
+  static public function removeConnection($target = NULL) {
+    $system = self::$activeSystem;
+    if (!isset(self::$connectionInfo[$system])) {
+      return FALSE;
+    }
+    
+    if (isset($target)) {
+      if (isset(self::$connectionInfo[$system][$target])) {
+        unset(self::$connectionInfo[$system][$target]);
+        unset(self::$connections[$system][$target]);
+        return TRUE;
+      }
+      else {
+        return FALSE;
+      }
+    }
+    else {
+      unset(self::$connectionInfo[$system]);
+      unset(self::$connections[$system]);
+    }
+    
+    return TRUE;
+  }
+  
+  /**
+   * 取得指定存储器命令
    * 
    * @param string $name 命令名
-   * @param string $table 数据表
-   * @param string $system 系统
    * 
    * @return StoreCommand
    */
-  static public function getCommand($name, $table, $system = 'realeff') {
+  final static public function getCommand($name) {
+    if (empty(self::$connectionInfo)) {
+      self::switchSystem();
+    }
     
-  }
-  
-  static public function openConnection() {
+    // 根据命令切换存储器链接
+    $command = self::$connectionInfo[self::$activeSystem]['command'];
+    $target = !empty($command[$name]) ? $command[$name] : 'default';
     
-  }
-  
-  static public function closeConnection() {
-    
-  }
-  
-  static public function removeConnection() {
-    
+    return self::getConnection($target)->command($name);
   }
   
   static public function startLog() {
     
   }
   
+  static public function getLog() {
+    
+  }
 }
 
 /**
@@ -58,6 +299,12 @@ abstract class Store {
  * @author feng
  */
 abstract class StoreConnection {
+  
+  
+  private $_system;
+  
+  
+  private $_target;
   
   /**
    * 这是存储设备资源
@@ -89,6 +336,26 @@ abstract class StoreConnection {
     $this->options = $options;
     
     
+  }
+  
+  public function setSystem($name) {
+    if (!isset($this->_system)) {
+      $this->_system = $name;
+    }
+  }
+  
+  public function getSystem() {
+    return $this->_system;
+  }
+  
+  public function setTarget($name) {
+    if (!isset($this->_target)) {
+      $this->_target = $name;
+    }
+  }
+  
+  public function getTarget() {
+    return $this->_target;
   }
   
   /**
@@ -146,6 +413,16 @@ abstract class StoreConnection {
    * @return StoreCommand
    */
   abstract public function command($name);
+  
+  /**
+   * 
+   * 
+   * @param string $string
+   * @param int $type
+   * 
+   * @return string
+   */
+  abstract public function quote($string, $type = NULL);
 
   /**
    * 获取存储设备的链接信息
@@ -209,7 +486,7 @@ abstract class StoreConnection {
  * @author realeff
  *
  */
-class StoreCommand {
+abstract class StoreCommand {
   
   /**
    * 存储命令
@@ -242,10 +519,9 @@ class StoreCommand {
   /**
    * 构造一个数据存储命令
    * 
-   * @param string $command
    * @param StoreConnection $connection
    */
-  public function __construct($command, StoreConnection $connection) {
+  public function __construct(StoreConnection $connection, $command) {
     $this->command = $command;
     $this->parameter = new StoreParameter();
     
@@ -260,16 +536,6 @@ class StoreCommand {
   final public function addParam($name) {
     $this->parameter->addParam($name);
   }
-  
-  /**
-   * 
-   * 
-   * @param string $string
-   * @param int $type
-   * 
-   * @return string
-   */
-  abstract public function quote($string, $type = NULL);
   
   
   /**
@@ -812,7 +1078,7 @@ abstract class StoreSchema {
 
 interface StoreStatementInterface extends Traversable {
   
-  public function execute();
+  public function execute(array $args = array());
   
   public function bindParam();
   
@@ -836,3 +1102,27 @@ interface StoreStatementInterface extends Traversable {
   
 }
 
+
+/**
+ * 如果有一个未配置的存储系统请求抛出异常。
+ * 
+ * @author realeff
+ *
+ */
+class StoreSystemNotConfiguredException extends Exception {}
+
+/**
+ * 如果有一个未定义的目标存储链接请求抛出异常。
+ * 
+ * @author realeff
+ *
+ */
+class StoreConnectionNotDefinedException extends Exception {}
+
+/**
+ * 如果有一个未指定驱动的目标存储链接请求抛出异常。
+ * 
+ * @author realeff
+ *
+ */
+class StoreDriverNotSpecifiedException extends Exception {}
