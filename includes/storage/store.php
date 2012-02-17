@@ -492,9 +492,9 @@ abstract class StoreQuerier {
   protected $filters;
   
   /**
-   * 命令参数最大长度
+   * 查询器最大过滤深度
    */
-  const MAX_PARAM_LENGTH = 10;
+  const MAX_FILTER_DEPTH = 10;
   
   /**
    * 存储参数
@@ -532,12 +532,12 @@ abstract class StoreQuerier {
   }
   
   /**
-   * 添加命令参数名
+   * 添加查询器过滤名
    * 
    * @param string $name
    */
   final public function addFilter($name) {
-    if (count($this->filters) > self::MAX_PARAM_LENGTH) {
+    if (count($this->filters) > self::MAX_FILTER_DEPTH) {
       return ;
     }
 
@@ -547,7 +547,7 @@ abstract class StoreQuerier {
   /**
    * 重新设定存储命令内容
    */
-  final public function reset() {
+  final public function clear() {
     if (isset($this->query)) {
       $this->query->end();
       $this->query = NULL;
