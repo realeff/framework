@@ -33,7 +33,7 @@ abstract class Query {
   /**
    * 查询参数
    *
-   * @var StoreParameter
+   * @var QueryParameter
    */
   protected $parameter;
   
@@ -41,9 +41,9 @@ abstract class Query {
    * 构造一个查询分类器
    *
    * @param string $table
-   * @param StoreParameter $parameter
+   * @param QueryParameter $parameter
    */
-  public function __construct($table, StoreParameter $parameter) {
+  public function __construct($table, QueryParameter $parameter) {
     $this->table = $table;
     $this->parameter = $parameter;
   }
@@ -65,7 +65,7 @@ abstract class Query {
   /**
    * 获取查询参数
    * 
-   * @return StoreParameter
+   * @return QueryParameter
    */
   final public function parameter() {
     return $this->parameter;
@@ -145,6 +145,157 @@ abstract class Query {
 //   }
 }
 
+
+/**
+ * 查询参数
+ *
+ * @author realeff
+ *
+ */
+class QueryParameter implements Iterator, ArrayAccess, Countable {
+
+  /**
+   * 计数列表
+   *
+   * @var array
+   */
+  private $_counters = array();
+
+  /**
+   * 参数容器
+   *
+   * @var array
+   */
+  private $_container = array();
+
+  /**
+   * 获取唯一参数名
+   *
+   * @return string
+   */
+  protected function uniqueName($name = 'param') {
+    if (!isset($this->_counters[$name])) {
+      $this->_counters[$name] = 0;
+    }
+
+    return isset($this->_container[$name]) ? $name .'_'. $this->_counters[$name]++ : $name;
+  }
+
+  /**
+   * 添加参数
+   *
+   * @param string $field 参数名
+   * @param mixed $value 参数值
+   *
+   * @return string
+   *   返回表示参数的唯一名称
+   */
+  public function add($field, $value) {
+    $field = self::uniqueName($field);
+    $this->_container[$field] = $value;
+
+    return $field;
+  }
+
+  /**
+   * (non-PHPdoc)
+   * @see ArrayAccess::offsetExists()
+   */
+  public function offsetExists($offset) {
+    // TODO Auto-generated method stub
+    return isset($this->_container[$offset]);
+  }
+
+  /**
+   * (non-PHPdoc)
+   * @see ArrayAccess::offsetGet()
+   */
+  public function offsetGet($offset) {
+    // TODO Auto-generated method stub
+    return $this->_container[$offset];
+  }
+
+  /**
+   * (non-PHPdoc)
+   * @see ArrayAccess::offsetSet()
+   */
+  public function offsetSet($offset, $value) {
+    // TODO Auto-generated method stub
+    if (isset($offset)) {
+      $this->_container[$offset] = $value;
+    }
+    else {
+      $offset = self::uniqueName();
+      $this->_container[$offset] = $value;
+    }
+
+    return $offset;
+  }
+
+  /**
+   * (non-PHPdoc)
+   * @see ArrayAccess::offsetUnset()
+   */
+  public function offsetUnset($offset) {
+    // TODO Auto-generated method stub
+    unset($this->_container[$offset]);
+  }
+
+  /**
+   * (non-PHPdoc)
+   * @see Iterator::current()
+   */
+  public function current() {
+    // TODO Auto-generated method stub
+    return current($this->_container);
+  }
+
+  /**
+   * (non-PHPdoc)
+   * @see Iterator::key()
+   */
+  public function key() {
+    // TODO Auto-generated method stub
+    return key($this->_container);
+  }
+
+  /**
+   * (non-PHPdoc)
+   * @see Iterator::next()
+   */
+  public function next() {
+    // TODO Auto-generated method stub
+    return next($this->_container);
+  }
+
+  /**
+   * (non-PHPdoc)
+   * @see Iterator::rewind()
+   */
+  public function rewind() {
+    // TODO Auto-generated method stub
+    return reset($this->_container);
+  }
+
+  /**
+   * (non-PHPdoc)
+   * @see Iterator::valid()
+   */
+  public function valid() {
+    // TODO Auto-generated method stub
+    return key($this->_container) !== NULL;
+  }
+
+  /**
+   * (non-PHPdoc)
+   * @see Countable::count()
+   */
+  public function count() {
+    // TODO Auto-generated method stub
+    return count($this->_container);
+  }
+
+}
 
 /**
  * 建立一个查询过滤条件
@@ -299,7 +450,7 @@ class QueryCondition implements IteratorAggregate, Countable {
   /**
    * 条件参数
    * 
-   * @var StoreParameter
+   * @var QueryParameter
    */
   protected $parameter;
   
@@ -320,10 +471,10 @@ class QueryCondition implements IteratorAggregate, Countable {
   /**
    * 构造一个过滤条件
    *
-   * @param StoreParameter $parameter;
+   * @param QueryParameter $parameter;
    * @param Query $query;
    */
-  public function __construct(StoreParameter $parameter, Query $query = NULL) {
+  public function __construct(QueryParameter $parameter, Query $query = NULL) {
     $this->conjunction = self::_AND_;
     $this->query = $query;
     $this->_current = $this;
@@ -786,9 +937,9 @@ class UpdateQuery extends Query {
    * 构造一个更新查询
    * 
    * @param string $table
-   * @param StoreParameter $parameter
+   * @param QueryParameter $parameter
    */
-  public function __construct($table, StoreParameter $parameter) {
+  public function __construct($table, QueryParameter $parameter) {
     parent::__construct($table, $parameter);
     
     $this->condition = new QueryCondition($this->parameter, $this);
@@ -924,9 +1075,9 @@ class DeleteQuery extends Query {
    * 构造一个插入查询
    * 
    * @param string $table
-   * @param StoreParameter $parameter
+   * @param QueryParameter $parameter
    */
-  public function __construct($table, StoreParameter $parameter) {
+  public function __construct($table, QueryParameter $parameter) {
     parent::__construct($table, $parameter);
     
     $this->condition = new QueryCondition($this->parameter, $this);
@@ -1180,9 +1331,9 @@ class SelectQuery extends Query {
    * 构造一个筛选查询
    * 
    * @param string $table 数据表
-   * @param StoreParameter $parameter
+   * @param QueryParameter $parameter
    */
-  public function __construct($table, StoreParameter $parameter) {
+  public function __construct($table, QueryParameter $parameter) {
     parent::__construct($table, $parameter);
     
     $this->condition = new QueryCondition($this->parameter, $this);
@@ -1452,9 +1603,9 @@ class MultiSelectQuery extends SelectQuery implements MultiSelectQueryInterface 
    * 
    * @param string $table
    * @param string $alias
-   * @param StoreParameter $parameter
+   * @param QueryParameter $parameter
    */
-  public function __construct($table, $alias, StoreParameter $parameter) {
+  public function __construct($table, $alias, QueryParameter $parameter) {
     // TODO Auto-generated method stub
     parent::__construct($table, $parameter);
     
