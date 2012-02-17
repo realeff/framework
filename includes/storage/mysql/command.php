@@ -66,5 +66,21 @@ class StoreCommand_mysql extends StoreCommand {
     // TODO Auto-generated method stub
     
   }
+/* (non-PHPdoc)
+ * @see StoreCommand::query()
+ */
+  public function query() {
+    // TODO Auto-generated method stub
+    
+  }
+/* (non-PHPdoc)
+ * @see StoreCommand::generateTemporary()
+ */
+  public function generateTemporary($table) {
+    // TODO Auto-generated method stub
+    
+  }
+
+
   
 }

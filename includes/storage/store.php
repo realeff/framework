@@ -16,21 +16,21 @@ abstract class Store {
    * 
    * @var string
    */
-  static protected $activeSystem = 'realeff';
+  protected static $activeSystem = 'realeff';
   
   /**
    * 链接存储器信息
    * 
    * @var array
    */
-  static protected $connectionInfo = array();
+  protected static $connectionInfo = array();
   
   /**
    * 链接资源
    * 
    * @var array
    */
-  static protected $connections = array();
+  protected static $connections = array();
   
   /**
    * 添加自定义数据链接信息
@@ -39,7 +39,7 @@ abstract class Store {
    * @param string $target
    * @param array $info
    */
-  static public function addConnectionInfo($system, $target, $info) {
+  public static function addConnectionInfo($system, $target, $info) {
     if (empty(self::$connectionInfo[$system][$target])) {
       self::$connectionInfo[$system][$target] = $info;
     }
@@ -48,7 +48,7 @@ abstract class Store {
   /**
    * 获取存储系统链接信息
    */
-  final static public function getConnectionInfo($system) {
+  final public static function getConnectionInfo($system) {
     return isset(self::$connectionInfo[$system]) ? self::$connectionInfo[$system] : NULL;
   }
   
@@ -60,7 +60,7 @@ abstract class Store {
    * @return string
    *   返回前一个系统名
    */
-  final static public function switchSystem($system = 'realeff') {
+  final public static function switchSystem($system = 'realeff') {
     global $databases;
     
     if (empty($databases[$system])) {
@@ -115,7 +115,7 @@ abstract class Store {
    * @param string $system
    *   系统名称，如果不指定则关闭所有系统链接。
    */
-  static public function resetSystem($system = NULL) {
+  public static function resetSystem($system = NULL) {
     if (isset($system)) {
       unset(self::$connectionInfo[$system], self::$connections[$system]);
       self::switchSystem($system);
@@ -131,7 +131,7 @@ abstract class Store {
    * 
    * @param string $driver
    */
-  static protected function loadDriver($driver) {
+  protected static function loadDriver($driver) {
     static $drivers = array();
     
     if (isset($drivers[$driver])) {
@@ -166,7 +166,7 @@ abstract class Store {
    * 
    * @return StoreConnection
    */
-  static protected function connection($target, array $options) {
+  protected static function connection($target, array $options) {
     
     if (empty($options['driver'])) {
       throw new StoreDriverNotSpecifiedException('没有指定目标存储驱动：'. $target);
@@ -191,7 +191,7 @@ abstract class Store {
    * 
    * @return StoreConnection
    */
-  final static public function getConnection($target = 'default') {
+  final public static function getConnection($target = 'default') {
     $system = self::$activeSystem;
     // 如果目标链接不存在，则使用默认链接。
     if (!isset(self::$connectionInfo[$system][$target])) {
@@ -211,7 +211,7 @@ abstract class Store {
    * 
    * @param string $target 链接目标
    */
-  static public function openConnection($target) {
+  public static function openConnection($target) {
     if (empty(self::$connectionInfo)) {
       self::switchSystem();
     }
@@ -234,7 +234,7 @@ abstract class Store {
    * @param string $target
    *   目标链接，如果不指定则关闭当前系统所有链接。
    */
-  static public function closeConnection($target = NULL) {
+  public static function closeConnection($target = NULL) {
     if (isset($target)) {
       unset(self::$connections[self::$activeSystem][$target]);
     }
@@ -243,7 +243,7 @@ abstract class Store {
     }
   }
   
-  static public function removeConnection($target = NULL) {
+  public static function removeConnection($target = NULL) {
     $system = self::$activeSystem;
     if (!isset(self::$connectionInfo[$system])) {
       return FALSE;
@@ -274,7 +274,7 @@ abstract class Store {
    * 
    * @return StoreCommand
    */
-  final static public function getCommand($name) {
+  final public static function getCommand($name) {
     if (empty(self::$connectionInfo)) {
       self::switchSystem();
     }
@@ -286,11 +286,11 @@ abstract class Store {
     return self::getConnection($target)->command($name);
   }
   
-  static public function startLog() {
+  public static function startLogger() {
     
   }
   
-  static public function getLog() {
+  public static function getLogger() {
     
   }
 }
@@ -302,11 +302,6 @@ abstract class Store {
  */
 abstract class StoreConnection {
   
-  
-  private $_system;
-  
-  
-  private $_target;
   
   /**
    * 这是存储设备资源
@@ -338,26 +333,6 @@ abstract class StoreConnection {
     $this->options = $options;
     
     
-  }
-  
-  public function setSystem($name) {
-    if (!isset($this->_system)) {
-      $this->_system = $name;
-    }
-  }
-  
-  public function getSystem() {
-    return $this->_system;
-  }
-  
-  public function setTarget($name) {
-    if (!isset($this->_target)) {
-      $this->_target = $name;
-    }
-  }
-  
-  public function getTarget() {
-    return $this->_target;
   }
   
   /**
@@ -498,6 +473,18 @@ abstract class StoreCommand {
   protected $command;
   
   /**
+   * 存储命令参数
+   *
+   * @var array
+   */
+  protected $params;
+  
+  /**
+   * 命令参数最大长度
+   */
+  const MAX_PARAM_LENGTH = 10;
+  
+  /**
    * 存储参数
    * 
    * @var StoreParameter
@@ -525,9 +512,11 @@ abstract class StoreCommand {
    */
   public function __construct(StoreConnection $connection, $command) {
     $this->command = $command;
-    $this->parameter = new StoreParameter();
+    $this->params = array();
     
     $this->connection = $connection;
+    
+    $this->parameter = new StoreParameter();
   }
   
   /**
@@ -536,16 +525,31 @@ abstract class StoreCommand {
    * @param string $name
    */
   final public function addParam($name) {
-    $this->parameter->addParam($name);
+    if (count($this->params) > self::MAX_PARAM_LENGTH) {
+      return ;
+    }
+
+    $this->params[$name] = $name;
   }
   
+  /**
+   * 重新设定存储命令内容
+   */
+  final public function reset() {
+    if (isset($this->query)) {
+      $this->query->end();
+      $this->query = NULL;
+      $this->parameter = new StoreParameter();
+    }
+    $this->params = array();
+  }
   
   /**
-   * 查询条件
+   * 创建子查询条件
    *
    * @return QueryCondition
    */
-  final public function condition() {
+  final public function createCondition() {
     return new QueryCondition($this->parameter);
   }
   
@@ -567,7 +571,7 @@ abstract class StoreCommand {
   }
   
   /**
-   * 查询数据
+   * 查询多表数据
    *
    * @param string $table 数据表
    * @param string $alias 表别名
@@ -634,7 +638,7 @@ abstract class StoreCommand {
   }
   
   /**
-   * 执行查询提交至存储设备处理
+   * 执行查询操作
    *
    * @return boolean
    *   执行成功返回TRUE，失败返回FALSE。
@@ -642,21 +646,38 @@ abstract class StoreCommand {
   abstract public function execute();
   
   /**
-   * 准备执行查询
+   * 立即执行查询并返回结果
+   * 
+   * @return StoreStatementInterface
+   */
+  abstract public function query();
+  
+  /**
+   * 准备但不立即执行查询并返回结果
    *
    * @return StoreStatementInterface
    */
   abstract public function prepare();
   
   /**
-   * 获取最后插入数据主键ID
+   * 执行查询并将结果放入指定临时表
+   * 
+   * @param string $table
+   * 
+   * @return bool
+   *   执行成功返回TRUE，失败返回FALSE。
+   */
+  abstract public function generateTemporary($table);
+  
+  /**
+   * 执行插入查询并获取最后插入数据主键增量ID
    *
    * @return int
    */
   abstract public function lastInsertId();
   
   /**
-   * 查询操作所影响的行数
+   * 执行查询操并返回所影响的行数
    *
    * @return int
    */
@@ -687,19 +708,6 @@ abstract class StoreCommand {
 final class StoreParameter implements Iterator, ArrayAccess, Countable {
 
   /**
-   * 命令参数列表
-   *
-   * @var array
-   */
-  private $_params = array();
-  /**
-   * 命令允许最多参数
-   *
-   * @var int
-   */
-  private $_maxlength = 10;
-
-  /**
    * 计数列表
    *
    * @var array
@@ -714,26 +722,6 @@ final class StoreParameter implements Iterator, ArrayAccess, Countable {
   private $_container = array();
 
   /**
-   * 添加命令参数
-   *
-   * @param string $name
-   */
-  public function addParam($name) {
-    if (count($this->_params) > $this->_maxlength) {
-      return ;
-    }
-
-    $this->_params[$name] = $name;
-  }
-
-  /**
-   * 返回字符串表示命令参数
-   */
-  public function __toString() {
-    return '-'. implode('-', $this->_params);
-  }
-
-  /**
    * 获取唯一参数名
    *
    * @return string
@@ -743,7 +731,7 @@ final class StoreParameter implements Iterator, ArrayAccess, Countable {
       $this->_counters[$name] = 0;
     }
 
-    return $name .'_'. $this->_counters[$name]++;
+    return isset($this->_container[$name]) ? $name .'_'. $this->_counters[$name]++ : $name;
   }
 
   /**
@@ -1103,6 +1091,8 @@ interface StoreStatementInterface extends Traversable {
   public function fetchObject();
   
 }
+
+
 
 
 /**
