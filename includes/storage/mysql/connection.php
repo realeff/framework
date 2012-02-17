@@ -127,9 +127,9 @@ class StoreConnection_mysql extends StoreConnection  {
    * (non-PHPdoc)
    * @see StoreConnection::getCommand()
    */
-  public function command($command) {
+  public function querier($name) {
     // TODO Auto-generated method stub
-    return new StoreCommand_mysql($this, $command);
+    return new StoreQuerier_mysql($this, $name);
   }
 
 /* (non-PHPdoc)

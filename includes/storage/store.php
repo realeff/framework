@@ -12,13 +12,6 @@ include_once STORE_DRIVER_PATH .'/analyzer.php';
 abstract class Store {
   
   /**
-   * 激活的存储系统
-   * 
-   * @var string
-   */
-  protected static $activeSystem = 'realeff';
-  
-  /**
    * 链接存储器信息
    * 
    * @var array
@@ -31,6 +24,20 @@ abstract class Store {
    * @var array
    */
   protected static $connections = array();
+  
+  /**
+   * 激活的存储系统
+   * 
+   * @var string
+   */
+  protected static $activeSystem = 'realeff';
+  
+  /**
+   * 数据查询器
+   * 
+   * @var array
+   */
+  protected static $dataQuerier = array();
   
   /**
    * 添加自定义数据链接信息
@@ -61,7 +68,7 @@ abstract class Store {
    *   返回前一个系统名
    */
   final public static function switchSystem($system = 'realeff') {
-    global $databases;
+    global $databases, $dataquerier;
     
     if (empty($databases[$system])) {
       throw new StoreSystemNotConfiguredException('没有配置指定存储系统：'. $system);
@@ -79,23 +86,23 @@ abstract class Store {
           return self::switchSystem();
       }
       
-      foreach ($databaseinfo as $key => $database) {
-        if ($key == 'command') {
-          continue;
-        }
-        
+      foreach ($databaseinfo as $target => $database) {
         // 如果没有定义“driver”属性，这个数组就是一个存储器链接池定义，由系统在此链接池中取出一个连接。
         if (empty($database['driver'])) {
-          $databaseinfo[$key] = $database[array_rand($database)];
+          $databaseinfo[$target] = $database[array_rand($database)];
         }
         
-        if (!isset($databaseinfo[$key]['prefix'])) {
-          $databaseinfo[$key]['prefix'] = '';
+        if (!isset($databaseinfo[$target]['prefix'])) {
+          $databaseinfo[$target]['prefix'] = '';
         }
       }
       
-      if (empty($databaseinfo['command'])) {
-        $databaseinfo['command'] = array();
+      self::$dataQuerier[$system] = array();
+      if (isset($dataquerier[$system]) && is_array($dataquerier[$system])) {
+        foreach ($dataquerier[$system] as $querier => $target) {
+          if (isset($databaseinfo[$target]))
+            self::$dataQuerier[$system][$querier] = $target;
+        }
       }
       
       self::$connectionInfo[$system] = $databaseinfo;
@@ -117,12 +124,15 @@ abstract class Store {
    */
   public static function resetSystem($system = NULL) {
     if (isset($system)) {
-      unset(self::$connectionInfo[$system], self::$connections[$system]);
+      unset(self::$connectionInfo[$system]);
+      unset(self::$connections[$system]);
+      unset(self::$dataQuerier[$system]);
       self::switchSystem($system);
     }
     else {
       self::$connectionInfo = array();
       self::$connections = array();
+      self::$dataQuerier = array();
     }
   }
   
@@ -141,7 +151,7 @@ abstract class Store {
     // 驱动文件包括
     static $files = array(
         'connection.php',
-        'command.php',
+        'querier.php',
         'schema.php',
         'statement.php',
         'analyzer.php'
@@ -268,31 +278,33 @@ abstract class Store {
   }
   
   /**
-   * 取得指定存储器命令
+   * 取得指定存储查询器
    * 
    * @param string $name 命令名
    * 
-   * @return StoreCommand
+   * @return StoreQuerier
    */
-  final public static function getCommand($name) {
+  final public static function getQuerier($name) {
     if (empty(self::$connectionInfo)) {
       self::switchSystem();
     }
     
-    // 根据命令切换存储器链接
-    $command = self::$connectionInfo[self::$activeSystem]['command'];
-    $target = !empty($command[$name]) ? $command[$name] : 'default';
+    $target = 'default';
+    if (isset(self::$dataQuerier[self::$activeSystem][$name])) {
+      // 根据查询器切换目标存储器
+      $target = self::$dataQuerier[self::$activeSystem][$name];
+    }
     
-    return self::getConnection($target)->command($name);
+    return self::getConnection($target)->querier($name);
   }
   
-  public static function startLogger() {
+//   public static function startLogger() {
     
-  }
+//   }
   
-  public static function getLogger() {
+//   public static function getLogger() {
     
-  }
+//   }
 }
 
 /**
@@ -370,7 +382,7 @@ abstract class StoreConnection {
    *
    * @return resource
    */
-  public function getConnection() {
+  public function getResource() {
     return $this->resource;
   }
   
@@ -383,13 +395,13 @@ abstract class StoreConnection {
   abstract public function schema();
   
   /**
-   * 在存储设备上执行查询命令
+   * 在存储设备上执行查询
    * 
    * @param string $name 命令名称
    * 
-   * @return StoreCommand
+   * @return StoreQuerier
    */
-  abstract public function command($name);
+  abstract public function querier($name);
   
   /**
    * 
@@ -463,21 +475,21 @@ abstract class StoreConnection {
  * @author realeff
  *
  */
-abstract class StoreCommand {
+abstract class StoreQuerier {
   
   /**
-   * 存储命令
+   * 查询器名称
    * 
    * @var string
    */
-  protected $command;
+  protected $name;
   
   /**
-   * 存储命令参数
+   * 查询过滤器
    *
    * @var array
    */
-  protected $params;
+  protected $filters;
   
   /**
    * 命令参数最大长度
@@ -487,7 +499,7 @@ abstract class StoreCommand {
   /**
    * 存储参数
    * 
-   * @var StoreParameter
+   * @var QueryParameter
    */
   protected $parameter;
   
@@ -510,13 +522,13 @@ abstract class StoreCommand {
    * 
    * @param StoreConnection $connection
    */
-  public function __construct(StoreConnection $connection, $command) {
-    $this->command = $command;
-    $this->params = array();
+  public function __construct(StoreConnection $connection, $name) {
+    $this->name = $name;
+    $this->filters = array();
     
     $this->connection = $connection;
     
-    $this->parameter = new StoreParameter();
+    $this->parameter = new QueryParameter();
   }
   
   /**
@@ -524,12 +536,12 @@ abstract class StoreCommand {
    * 
    * @param string $name
    */
-  final public function addParam($name) {
-    if (count($this->params) > self::MAX_PARAM_LENGTH) {
+  final public function addFilter($name) {
+    if (count($this->filters) > self::MAX_PARAM_LENGTH) {
       return ;
     }
 
-    $this->params[$name] = $name;
+    $this->filters[$name] = $name;
   }
   
   /**
@@ -539,9 +551,9 @@ abstract class StoreCommand {
     if (isset($this->query)) {
       $this->query->end();
       $this->query = NULL;
-      $this->parameter = new StoreParameter();
+      $this->parameter = new QueryParameter();
     }
-    $this->params = array();
+    $this->filters = array();
   }
   
   /**
@@ -628,7 +640,7 @@ abstract class StoreCommand {
    * 插入更新数据，此方法会先检查指定数据是否存在，如果不存在则插入数据，如果存在则更新数据。
    *
    * @param string $table 数据表
-   * @param StoreParameter $parameter 数据参数
+   * @param QueryParameter $parameter 数据参数
    *
    * @return InsertQuery
    */
@@ -697,157 +709,6 @@ abstract class StoreCommand {
    */
   abstract public function errorInfo();
   
-}
-
-/**
- * 存储参数
- * 
- * @author realeff
- *
- */
-final class StoreParameter implements Iterator, ArrayAccess, Countable {
-
-  /**
-   * 计数列表
-   *
-   * @var array
-   */
-  private $_counters = array();
-
-  /**
-   * 参数容器
-   *
-   * @var array
-   */
-  private $_container = array();
-
-  /**
-   * 获取唯一参数名
-   *
-   * @return string
-   */
-  protected function uniqueName($name = 'param') {
-    if (!isset($this->_counters[$name])) {
-      $this->_counters[$name] = 0;
-    }
-
-    return isset($this->_container[$name]) ? $name .'_'. $this->_counters[$name]++ : $name;
-  }
-
-  /**
-   * 添加参数
-   *
-   * @param string $field 参数名
-   * @param mixed $value 参数值
-   *
-   * @return string
-   *   返回表示参数的唯一名称
-   */
-  public function add($field, $value) {
-    $field = self::uniqueName($field);
-    $this->_container[$field] = $value;
-
-    return $field;
-  }
-
-  /**
-   * (non-PHPdoc)
-   * @see ArrayAccess::offsetExists()
-   */
-  public function offsetExists($offset) {
-    // TODO Auto-generated method stub
-    return isset($this->_container[$offset]);
-  }
-
-  /**
-   * (non-PHPdoc)
-   * @see ArrayAccess::offsetGet()
-   */
-  public function offsetGet($offset) {
-    // TODO Auto-generated method stub
-    return $this->_container[$offset];
-  }
-
-  /**
-   * (non-PHPdoc)
-   * @see ArrayAccess::offsetSet()
-   */
-  public function offsetSet($offset, $value) {
-    // TODO Auto-generated method stub
-    if (isset($offset)) {
-      $this->_container[$offset] = $value;
-    }
-    else {
-      $offset = self::uniqueName();
-      $this->_container[$offset] = $value;
-    }
-
-    return $offset;
-  }
-
-  /**
-   * (non-PHPdoc)
-   * @see ArrayAccess::offsetUnset()
-   */
-  public function offsetUnset($offset) {
-    // TODO Auto-generated method stub
-    unset($this->_container[$offset]);
-  }
-
-  /**
-   * (non-PHPdoc)
-   * @see Iterator::current()
-   */
-  public function current() {
-    // TODO Auto-generated method stub
-    return current($this->_container);
-  }
-
-  /**
-   * (non-PHPdoc)
-   * @see Iterator::key()
-   */
-  public function key() {
-    // TODO Auto-generated method stub
-    return key($this->_container);
-  }
-
-  /**
-   * (non-PHPdoc)
-   * @see Iterator::next()
-   */
-  public function next() {
-    // TODO Auto-generated method stub
-    return next($this->_container);
-  }
-
-  /**
-   * (non-PHPdoc)
-   * @see Iterator::rewind()
-   */
-  public function rewind() {
-    // TODO Auto-generated method stub
-    return reset($this->_container);
-  }
-
-  /**
-   * (non-PHPdoc)
-   * @see Iterator::valid()
-   */
-  public function valid() {
-    // TODO Auto-generated method stub
-    return key($this->_container) !== NULL;
-  }
-
-  /**
-   * (non-PHPdoc)
-   * @see Countable::count()
-   */
-  public function count() {
-    // TODO Auto-generated method stub
-    return count($this->_container);
-  }
-
 }
 
 

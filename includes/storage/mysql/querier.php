@@ -1,16 +1,16 @@
 <?php
 
 
-class StoreCommand_mysql extends StoreCommand {
+class StoreQuerier_mysql extends StoreQuerier {
   
   
-  public function __construct(StoreConnection_mysql $connection, $command) {
-    parent::__construct($connection, $command);
+  public function __construct(StoreConnection_mysql $connection, $name) {
+    parent::__construct($connection, $name);
   }
 
   /**
    * (non-PHPdoc)
-   * @see StoreCommand::affected_rows()
+   * @see StoreQuerier::affected_rows()
    */
   public function affected_rows() {
     // TODO Auto-generated method stub
@@ -19,7 +19,7 @@ class StoreCommand_mysql extends StoreCommand {
 
   /**
    * (non-PHPdoc)
-   * @see StoreCommand::errorCode()
+   * @see StoreQuerier::errorCode()
    */
   public function errorCode() {
     // TODO Auto-generated method stub
@@ -28,7 +28,7 @@ class StoreCommand_mysql extends StoreCommand {
 
   /**
    * (non-PHPdoc)
-   * @see StoreCommand::errorInfo()
+   * @see StoreQuerier::errorInfo()
    */
   public function errorInfo() {
     // TODO Auto-generated method stub
@@ -37,7 +37,7 @@ class StoreCommand_mysql extends StoreCommand {
 
   /**
    * (non-PHPdoc)
-   * @see StoreCommand::execute()
+   * @see StoreQuerier::execute()
    */
   public function execute() {
     // TODO Auto-generated method stub
@@ -46,12 +46,12 @@ class StoreCommand_mysql extends StoreCommand {
     }
     
     // 转换query为sql语句
-    //return (bool)mysql_query($sql, $this->connection->getConnection());
+    //return (bool)mysql_query($sql, $this->connection->getResource());
   }
 
   /**
    * (non-PHPdoc)
-   * @see StoreCommand::lastInsertId()
+   * @see StoreQuerier::lastInsertId()
    */
   public function lastInsertId() {
     // TODO Auto-generated method stub
@@ -60,21 +60,21 @@ class StoreCommand_mysql extends StoreCommand {
   
   /**
    * (non-PHPdoc)
-   * @see StoreCommand::prepare()
+   * @see StoreQuerier::prepare()
    */
   public function prepare() {
     // TODO Auto-generated method stub
     
   }
 /* (non-PHPdoc)
- * @see StoreCommand::query()
+ * @see StoreQuerier::query()
  */
   public function query() {
     // TODO Auto-generated method stub
     
   }
 /* (non-PHPdoc)
- * @see StoreCommand::generateTemporary()
+ * @see StoreQuerier::generateTemporary()
  */
   public function generateTemporary($table) {
     // TODO Auto-generated method stub

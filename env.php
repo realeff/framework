@@ -16,11 +16,14 @@ include_once RESYS_ROOT .'/includes/storage/store.php';
 
 $basememory = memory_get_usage();
 $conn = Store::getConnection();
-
-$cmd = $conn->command('test');
 $firstmemory = memory_get_usage();
-function testmem($cmd) {
-$query = new UpdateQuery('test');
+
+/**
+ *
+ * @param StoreConnection $conn
+ */
+function testmem() {
+$query = Store::getQuerier('test')->update('test');
 $query->fields(array('field0' => 'value0', 'field1' => 'value1', 'field2' => 'value2'));
 $query->condition()
 ->compare('a', '1', '=')
@@ -35,19 +38,24 @@ $query->condition()
 
   return new SQLUpdateAnalyzer($query);
 }
-print testmem($cmd) .'<br>';
+print testmem() .'<br>';
 echo "<pre style=\"border: 1px solid #000; margin: 0.5em;\">";
-var_dump(testmem($cmd)->arguments());
+var_dump(testmem()->arguments());
 echo "</pre>\n";
 print memory_get_usage()-$firstmemory .'<br>';
-$conn->closeConnection();
+
 $firstmemory = memory_get_usage();
 //$query = "delete from test where a = 1 and b like '%abc%' and ((c > 0 or d < 10 or dd > 3) and f < 20 or d < 10)";
 
-function testmquery($cmd) {
-  
-  $mquery = new MultiSelectQuery('test', 't');
-  $query = new SelectQuery('test', $mquery->parameter());
+/**
+ * 
+ * @param StoreConnection $conn
+ */
+function testmquery() {
+  $cmd = Store::getQuerier('test');
+
+  $mquery = $cmd->select_multi('test', 't');
+  $query = $cmd->select('test');
   $query->fields(array('field0' => 'value0', 'field1' => 'value1', 'field2' => 'value2'));
   $query->condition()
   ->compare('a', '1', '=')
@@ -68,16 +76,16 @@ function testmquery($cmd) {
   
   return new SQLSelectAnalyzer($mquery);
 }
-print testmquery($cmd) .'<br>';
+print testmquery() .'<br>';
 echo "<pre style=\"border: 1px solid #000; margin: 0.5em;\">";
-var_dump(testmquery($cmd)->arguments());
+var_dump(testmquery()->arguments());
 echo "</pre>\n";
 
 print memory_get_usage()-$firstmemory .'<br>';
 
 timer_start('test');
 for ($i = 0; $i < 1000; $i++) {
-  testmquery($cmd)->arguments();
+  testmquery()->arguments();
 }
 timer_stop('test');
 print timer_read('test') .'<br>';
@@ -90,7 +98,7 @@ print memory_get_usage();
 /**
 switchSystem('default');
 switchPlatform('default');
-$cmd = getCommand('cmdname');
+$cmd = querier('cmdname');
 $cmd->insert();
 $cmd->update();
 $cmd->delete();

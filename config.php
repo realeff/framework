@@ -41,8 +41,8 @@ $databases['realeff'] = array(
 );
 $databases['othersys'] = array();
 
-// 存储命令
-$databases['realeff']['command'] = array(
+// 数据查询器
+$dataquerier['realeff'] = array(
   'cache' => 'slave',
   'site' => 'slave'
 );
