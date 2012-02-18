@@ -296,8 +296,6 @@ class SQLInsertAnalyzer extends SQLAnalyzer {
     $this->fields =& $query->getFields();
     $this->values =& $query->getValues();
     $this->queryFrom = $query->select();
-    
-    $this->parameter->addParam('ins'. count($this->values));
   }
   
   /**
