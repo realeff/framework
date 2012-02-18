@@ -519,7 +519,7 @@ class QueryCondition implements IteratorAggregate, Countable {
   /**
    * 增加过滤条件
    * 
-   * @param QueryCondition $condition
+   * @param QueryCondition $where
    * 
    * @return QueryCondition
    */
@@ -1018,7 +1018,7 @@ class UpdateQuery extends Query {
    * 
    * @return QueryCondition
    */
-  public function condition() {
+  public function where() {
     return $this->condition;
   }
   
@@ -1097,7 +1097,7 @@ class DeleteQuery extends Query {
    * 
    * @return QueryCondition
    */
-  public function condition() {
+  public function where() {
     return $this->condition;
   }
 
@@ -1160,7 +1160,7 @@ interface MultiSelectQueryInterface {
    * @param string $type
    * @param string $table
    * @param string $alias
-   * @param string $condition
+   * @param string $where
    * @param array $arguments
    * 
    * @return MultiSelectQueryInterface
@@ -1178,7 +1178,7 @@ interface MultiSelectQueryInterface {
    * 
    * @param string $table
    * @param string $alias
-   * @param string $condition
+   * @param string $where
    * @param array $arguments
    * 
    * @return MultiSelectQueryInterface
@@ -1190,7 +1190,7 @@ interface MultiSelectQueryInterface {
    * 
    * @param string $table
    * @param string $alias
-   * @param string $condition
+   * @param string $where
    * @param array $arguments
    * 
    * @return MultiSelectQueryInterface
@@ -1202,7 +1202,7 @@ interface MultiSelectQueryInterface {
    * 
    * @param string $table
    * @param string $alias
-   * @param string $condition
+   * @param string $where
    * @param array $arguments
    * 
    * @return MultiSelectQueryInterface
@@ -1214,7 +1214,7 @@ interface MultiSelectQueryInterface {
    * 
    * @param string $table
    * @param string $alias
-   * @param string $condition
+   * @param string $where
    * @param array $arguments
    * 
    * @return MultiSelectQueryInterface
@@ -1448,7 +1448,7 @@ class SelectQuery extends Query {
    * 
    * @return QueryCondition
    */
-  public function condition() {
+  public function where() {
     return $this->condition;;
   }
   
@@ -1692,7 +1692,7 @@ class MultiSelectQuery extends SelectQuery implements MultiSelectQueryInterface 
         'table' => $table,
         'alias' => $alias,
         'fields' => array(),
-        'condition' => $condition,
+        'where' => $condition,
         'arguments' => $arguments
       );
     foreach ($arguments as $field => $value) {

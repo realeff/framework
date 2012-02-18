@@ -8,23 +8,23 @@
  *   VALUES (value0, value1, value2...),
  *   VALUES (value0, value1, value2...);
  *   INSERT INTO table (field0, field1, field2...)
- *   SELECT field0, field1, field2... FROM tableas [WHERE condition]
+ *   SELECT field0, field1, field2... FROM tableas [WHERE where]
  *   [GROUP BY group HAVING having] [ORDER BY order [ASC | DESC]];
  * 更新语句
- *   UPDATE table SET field = value [WHERE condition];
- *   UPDATE table SET field0 = value0, field1 = value1, field2 = value2... [WHERE condition];
+ *   UPDATE table SET field = value [WHERE where];
+ *   UPDATE table SET field0 = value0, field1 = value1, field2 = value2... [WHERE where];
  * 删除语句
- *   DELETE FROM table [WHERE condition];
+ *   DELETE FROM table [WHERE where];
  * 查询语句
- *   SELECT * FROM table [WHERE condition]
+ *   SELECT * FROM table [WHERE where]
  *   [GROUP BY group [HAVING having]] [ORDER BY order [ASC | DESC]] [LIMIT offset, count];
  *   SELECT [TOP count] * FROM ...;
  *   SELECT field0, field1, field2... FROM ...;
  * 混合查询语句
- *   SELECT t1.*, t2.* FROM table t1 [INNER | LEFT | RIGHT | FULL OUTER] JOIN table t2 ON condition
- *   [WHERE condition] [GROUP BY group [HAVING having]] [ORDER BY order [ASC | DESC]] [LIMIT offset, count];
- *   SELECT t1.*, t2.field0, t2.field1... FROM table t1 INNER JOIN (SELECT field0, field1, field2... FROM table WHERE condition) t2 ON t1.field = t2.field0
- *   [WHERE condition] [GROUP BY group [HAVING having]] [ORDER BY order [ASC | DESC]] [LIMIT offset, count];
+ *   SELECT t1.*, t2.* FROM table t1 [INNER | LEFT | RIGHT | FULL OUTER] JOIN table t2 ON where
+ *   [WHERE where] [GROUP BY group [HAVING having]] [ORDER BY order [ASC | DESC]] [LIMIT offset, count];
+ *   SELECT t1.*, t2.field0, t2.field1... FROM table t1 INNER JOIN (SELECT field0, field1, field2... FROM table WHERE where) t2 ON t1.field = t2.field0
+ *   [WHERE where] [GROUP BY group [HAVING having]] [ORDER BY order [ASC | DESC]] [LIMIT offset, count];
  */
 
 
@@ -387,7 +387,7 @@ class SQLUpdateAnalyzer extends SQLAnalyzer {
     
     $this->fields =& $query->getFields();
     $this->arguments =& $query->getArguments();// 字段表达式参数
-    $this->condition = $query->condition();
+    $this->condition = $query->where();
   }
   
   
@@ -441,7 +441,7 @@ class SQLDeleteAnalyzer extends SQLAnalyzer {
   public function __construct(DeleteQuery $query) {
     parent::__construct($query);
     
-    $this->condition = $query->condition();
+    $this->condition = $query->where();
   }
   
   public function conditionAnalyzer() {
@@ -535,7 +535,7 @@ class SQLSelectAnalyzer extends SQLAnalyzer {
     $this->query = $query;
     $this->fields =& $query->getFields();
     $this->arguments =& $query->getArguments();
-    $this->condition = $query->condition();
+    $this->condition = $query->where();
     $this->groups =& $query->getGroups();
     $this->having = $query->having();
     $this->orders =& $query->getOrders();
@@ -617,8 +617,8 @@ class SQLSelectAnalyzer extends SQLAnalyzer {
         }
         $table_string .= ' '. $table_alias;
         
-        if (!empty($join['condition'])) {
-          $table_string .= ' ON '. $join['condition'];
+        if (!empty($join['where'])) {
+          $table_string .= ' ON '. $join['where'];
         }
         
         $tables[] = $table_string;
