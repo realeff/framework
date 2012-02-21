@@ -14,7 +14,7 @@ class StoreQuerier_mysql extends StoreQuerier {
    */
   public function affected_rows() {
     // TODO Auto-generated method stub
-    return mysql_affected_rows($this->connection->getConnection());
+    return mysql_affected_rows($this->connection->getResource());
   }
 
   /**
@@ -55,7 +55,7 @@ class StoreQuerier_mysql extends StoreQuerier {
    */
   public function lastInsertId() {
     // TODO Auto-generated method stub
-    return mysql_insert_id($this->connection->getConnection());
+    return mysql_insert_id($this->connection->getResource());
   }
   
   /**
@@ -66,21 +66,32 @@ class StoreQuerier_mysql extends StoreQuerier {
     // TODO Auto-generated method stub
     
   }
-/* (non-PHPdoc)
- * @see StoreQuerier::query()
- */
+
+  /**
+   * (non-PHPdoc)
+   * @see StoreQuerier::query()
+   */
   public function query() {
     // TODO Auto-generated method stub
     
   }
-/* (non-PHPdoc)
- * @see StoreQuerier::generateTemporary()
- */
+
+  /**
+   * (non-PHPdoc)
+   * @see StoreQuerier::generateTemporary()
+   */
   public function generateTemporary($table) {
     // TODO Auto-generated method stub
     
   }
 
-
+  /**
+   * (non-PHPdoc)
+   * @see StoreQuerier::getStatement()
+   */
+  protected function getStatement() {
+    // TODO Auto-generated method stub
+    
+  }
   
 }
