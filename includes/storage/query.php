@@ -10,6 +10,13 @@
 abstract class Query {
   
   /**
+   * 标识符
+   * 
+   * @var string
+   */
+  protected $identifier;
+  
+  /**
    * 查询语句注解
    * 
    * @var array
@@ -126,8 +133,26 @@ abstract class Query {
 //     // 根据值的数据类型返回Schema标准类型
 //     return 'string';
 //   }
-
-//   abstract public function getParameters();
+  
+  /**
+   * 设置查询标识符
+   * 
+   * @param string $identifier
+   */
+  public function setIdentifier($identifier) {
+    if (!isset($this->identifier)) {
+      $this->identifier = $identifier;
+    }
+  }
+  
+  /**
+   * 获取查询标识符
+   * 
+   * @return string
+   */
+  public function getIdentifier() {
+    return $this->identifier;
+  }
 
   /**
    * 结束查询器并返回到存储器命令操作
