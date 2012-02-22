@@ -295,7 +295,7 @@ abstract class Store {
       $target = self::$dataQuerier[self::$activeSystem][$name];
     }
     
-    return self::getConnection($target)->querier($name);
+    return new StoreQuerier(self::getConnection($target), $name);
   }
   
 //   public static function startLogger() {
@@ -337,6 +337,12 @@ abstract class StoreConnection {
   protected $prefixes = array();
   
   /**
+   * 查询语句分析器
+   * @var array
+   */
+  private $_analyzers = array();
+  
+  /**
    * 构造与存储设备的链接
    * 
    * @param array $options 链接选项
@@ -344,7 +350,11 @@ abstract class StoreConnection {
   public function __construct(array $options) {
     $this->options = $options;
     
+    // 设置数据表前缀
+    //$this->setPrefix($prefix);
     
+    // 打开存储设备链接
+    $this->open();
   }
   
   /**
@@ -395,13 +405,83 @@ abstract class StoreConnection {
   abstract public function schema();
   
   /**
-   * 在存储设备上执行查询
+   * 生成临时表数据记录
    * 
-   * @param string $name 命令名称
+   * @param string $temporaryTable
+   * @param SelectQuery $query
    * 
-   * @return StoreQuerier
+   * @return bool
+   *   成功时返回TRUE，失败时返回FALSE。
    */
-  abstract public function querier($name);
+  abstract public function temporary($temporaryTable, SelectQuery $query);
+  
+  /**
+   * 执行查询语句
+   * 
+   * @param Query $query
+   * 
+   * @return resource
+   *   返回各存储设备执行查询后所返回的资源
+   */
+  abstract public function execute(Query $query);
+  
+  /**
+   * 执行查询语句所影响的数据行数量。
+   * 
+   * @return int
+   */
+  abstract public function affectedRows();
+  
+  /**
+   * 执行插入语句最后插入数据的增量ID
+   * 
+   * @return int
+   */
+  abstract public function lastInsertId();
+  
+  /**
+   * 准备查询语句待执行
+   * 
+   * @param Query $query
+   * 
+   * @return StoreStatementInterface
+   */
+  abstract public function prepare(Query $query);
+  
+  /**
+   * 执行查询语句
+   * 
+   * @param Query $query
+   * 
+   * @return StoreStatementInterface
+   */
+  public function query(Query $query) {
+    
+    $stmt = $this->prepare($query);
+    $stmt->execute(NULL);
+    
+    return $stmt;
+  }
+  
+  /**
+   * 预置数据表前缀
+   * 
+   * @param array $prefix
+   */
+  protected function setPrefix(array $prefix) {
+    
+  }
+  
+  /**
+   * 转换数据表前缀全称
+   * 
+   * @param string $str 带表名的字符串
+   * 
+   * @return string 数据表全名
+   */
+  public function prefixTables($str) {
+    
+  }
   
   /**
    * 
@@ -413,6 +493,36 @@ abstract class StoreConnection {
    */
   abstract public function quote($string, $type = NULL);
 
+  /**
+   * 注册查询语句分析器
+   * 
+   * @param QueryAnalyzerInterface $analyzer
+   */
+  public function registerAnalyzer(QueryAnalyzerInterface $analyzer) {
+    $type = $analyzer->masktype();
+    if (!isset($this->_analyzers[$type])) {
+      $this->_analyzers[$type] = $analyzer;
+    }
+  }
+  
+  /**
+   * 分析查询语句，返回分析器。
+   * 
+   * @param Query $query
+   * 
+   * @return QueryAnalyzerInterface
+   */
+  protected function analyzer(Query $query) {
+    foreach ($this->_analyzers as $type => $analyzer) {
+      if ($query->type() & $type) {
+        $analyzer->setQuery($query);
+        break;
+      }
+    }
+    
+    return $analyzer;
+  }
+  
   /**
    * 获取存储设备的链接信息
    *
@@ -475,7 +585,7 @@ abstract class StoreConnection {
  * @author realeff
  *
  */
-abstract class StoreQuerier {
+class StoreQuerier {
   
   /**
    * 查询器名称
@@ -531,6 +641,19 @@ abstract class StoreQuerier {
     $this->parameter = new QueryParameter();
   }
   
+  public function __toString() {
+    return $this->name;
+  }
+  
+  /**
+   * 获取存储设备链接
+   * 
+   * @return StoreConnection
+   */
+  final public function getConnection() {
+    return $this->connection;
+  }
+  
   /**
    * 添加查询器过滤名
    * 
@@ -566,6 +689,29 @@ abstract class StoreQuerier {
   }
   
   /**
+   * 创建数据查询
+   * 
+   * @param string $table
+   * 
+   * @return SelectQuery
+   */
+  final public function createSelect($table) {
+    return new SelectQuery($table, $this->parameter);
+  }
+  
+  /**
+   * 创建多表数据查询
+   * 
+   * @param string $table
+   * @param string $alias
+   * 
+   * @return MultiSelectQuery
+   */
+  final public function createMultiSelect($table, $alias) {
+    return new MultiSelectQuery($table, $alias, $this->parameter);
+  }
+  
+  /**
    * 查询数据
    *
    * @param string $table 数据表
@@ -573,13 +719,11 @@ abstract class StoreQuerier {
    * @return SelectQuery
    */
   final public function select($table) {
-    if (isset($this->query)) {
-      return new SelectQuery($table, $this->parameter);
+    if (!isset($this->query)) {
+      $this->query = $this->createSelect($table);
     }
-    else {
-      $this->query = new SelectQuery($table, $this->parameter);
-      return $this->query;
-    }
+    
+    return $this->query;
   }
   
   /**
@@ -591,13 +735,11 @@ abstract class StoreQuerier {
    * @return MultiSelectQuery
    */
   final public function select_multi($table, $alias) {
-    if (isset($this->query)) {
-      return new MultiSelectQuery($table, $alias, $this->parameter);
+    if (!isset($this->query)) {
+      $this->query = $this->createMultiSelect($table, $alias);
     }
-    else {
-      $this->query = new MultiSelectQuery($table, $alias, $this->parameter);
-      return $this->query;
-    }
+    
+    return $this->query;
   }
   
   /**
@@ -608,7 +750,10 @@ abstract class StoreQuerier {
    * @return InsertQuery
    */
   final public function insert($table) {
-    $this->query = new InsertQuery($table, $this->parameter);
+    if (!isset($this->query)) {
+      $this->query = new InsertQuery($table, $this->parameter);
+    }
+    
     return $this->query;
   }
   
@@ -620,7 +765,10 @@ abstract class StoreQuerier {
    * @return DeleteQuery
    */
   final public function delete($table) {
-    $this->query = new DeleteQuery($table, $this->parameter);
+    if (!isset($this->query)) {
+      $this->query = new DeleteQuery($table, $this->parameter);
+    }
+    
     return $this->query;
   }
   
@@ -632,7 +780,10 @@ abstract class StoreQuerier {
    * @return UpdateQuery
    */
   final public function update($table) {
-    $this->query = new UpdateQuery($table, $this->parameter);
+    if (!isset($this->query)) {
+      $this->query = new UpdateQuery($table, $this->parameter);
+    }
+    
     return $this->query;
   }
   
@@ -645,8 +796,26 @@ abstract class StoreQuerier {
    * @return InsertQuery
    */
   final public function insert_update($table) {
-    $this->query = new ReplaceQuery($table, $this->parameter);
+    if (!isset($this->query)) {
+      $this->query = new ReplaceQuery($table, $this->parameter);
+    }
+    
     return $this->query;
+  }
+  
+  /**
+   * 
+   */
+  protected function makeQuery() {
+    if (isset($this->query)) {
+      $identifier = $this->name .'-'. $this->query->name();
+      $identifier .= implode('-', $this->filters);
+      $this->query->setIdentifier($identifier);
+      
+      return TRUE;
+    }
+    
+    return FALSE;
   }
   
   /**
@@ -655,21 +824,39 @@ abstract class StoreQuerier {
    * @return boolean
    *   执行成功返回TRUE，失败返回FALSE。
    */
-  abstract public function execute();
+  public function execute() {
+    if ($this->makeQuery()) {
+      return (bool)$this->connection->execute($this->query);
+    }
+    
+    return FALSE;
+  }
   
   /**
    * 立即执行查询并返回结果
    * 
    * @return StoreStatementInterface
    */
-  abstract public function query();
+  public function query() {
+    if ($this->makeQuery()) {
+      return $this->connection->query($this->query);
+    }
+    
+    return FALSE;
+  }
   
   /**
    * 准备但不立即执行查询并返回结果
    *
    * @return StoreStatementInterface
    */
-  abstract public function prepare();
+  public function prepare() {
+    if ($this->makeQuery()) {
+      return $this->connection->prepare($this->query);
+    }
+    
+    return FALSE;
+  }
   
   /**
    * 执行查询并将结果放入指定临时表
@@ -679,35 +866,57 @@ abstract class StoreQuerier {
    * @return bool
    *   执行成功返回TRUE，失败返回FALSE。
    */
-  abstract public function generateTemporary($table);
+  public function generateTemporary($table) {
+    if ($this->makeQuery()) {
+      return $this->connection->temporary($table, $this->query);
+    }
+    
+    return FALSE;
+  }
   
   /**
    * 执行插入查询并获取最后插入数据主键增量ID
    *
    * @return int
    */
-  abstract public function lastInsertId();
+  public function lastInsertId() {
+    if (isset($this->query)) {
+      return $this->connection->lastInsertId();
+    }
+    
+    return FALSE;
+  }
   
   /**
    * 执行查询操并返回所影响的行数
    *
    * @return int
    */
-  abstract public function affected_rows();
+  public function affected_rows() {
+    if (isset($this->query)) {
+      return $this->connection->affectedRows();
+    }
+    
+    return 0;
+  }
   
   /**
    * 返回错误代码
    *
    * @return int
    */
-  abstract public function errorCode();
+  public function errorCode() {
+    return $this->connection->errorCode();
+  }
   
   /**
    * 返回错误信息
    *
    * @return string
    */
-  abstract public function errorInfo();
+  public function errorInfo() {
+    return $this->connection->errorInfo();
+  }
   
 }
 
@@ -927,35 +1136,6 @@ abstract class StoreSchema {
 }
 
 
-interface StoreStatementInterface extends Traversable {
-  
-  public function execute(array $args = array());
-  
-  public function bindParam();
-  
-  public function rowCount();
-  
-  public function fetch();
-  
-  public function fetchField();
-  
-  public function fetchAssoc();
-  
-  public function fetchCol();
-  
-  public function fetchAllKeyd();
-  
-  public function fetchAllAssoc();
-  
-  public function fetchArray();
-  
-  public function fetchObject();
-  
-}
-
-
-
-
 /**
  * 如果有一个未配置的存储系统请求抛出异常。
  * 
@@ -979,3 +1159,156 @@ class StoreConnectionNotDefinedException extends Exception {}
  *
  */
 class StoreDriverNotSpecifiedException extends Exception {}
+
+
+/**
+ * 存储数据处理接口
+ * 
+ * @author realeff
+ *
+ */
+interface StoreStatementInterface {
+
+  public function execute($args = array());
+
+  public function rowCount();
+
+  //public function fetch();
+  
+  public function fetchAll();
+
+  public function fetchField($index = 0);
+
+  public function fetchAssoc();
+
+  public function fetchArray();
+
+  public function fetchObject();
+
+  public function freeResult();
+}
+
+class StoreStatementEmpty implements StoreStatementInterface {
+	/* (non-PHPdoc)
+ * @see StoreStatementInterface::execute()
+ */
+  public function execute($args = array()) {
+    // TODO Auto-generated method stub
+    return FALSE;
+  }
+
+	/* (non-PHPdoc)
+ * @see StoreStatementInterface::fetchAll()
+ */
+  public function fetchAll() {
+    // TODO Auto-generated method stub
+    return NULL;
+  }
+
+	/* (non-PHPdoc)
+ * @see StoreStatementInterface::fetchArray()
+ */
+  public function fetchArray() {
+    // TODO Auto-generated method stub
+    return array();
+  }
+
+	/* (non-PHPdoc)
+ * @see StoreStatementInterface::fetchAssoc()
+ */
+  public function fetchAssoc() {
+    // TODO Auto-generated method stub
+    return array();
+  }
+
+	/* (non-PHPdoc)
+ * @see StoreStatementInterface::fetchField()
+ */
+  public function fetchField($index = 0) {
+    // TODO Auto-generated method stub
+    return NULL;
+  }
+
+	/* (non-PHPdoc)
+ * @see StoreStatementInterface::fetchObject()
+ */
+  public function fetchObject() {
+    // TODO Auto-generated method stub
+    return NULL;
+  }
+
+	/* (non-PHPdoc)
+ * @see StoreStatementInterface::freeResult()
+ */
+  public function freeResult() {
+    // TODO Auto-generated method stub
+    return TRUE;
+  }
+
+	/* (non-PHPdoc)
+ * @see StoreStatementInterface::rowCount()
+ */
+  public function rowCount() {
+    // TODO Auto-generated method stub
+    return 0;
+  }
+
+}
+
+abstract class StoreStatementDatabase implements StoreStatementInterface {
+  
+  /**
+   * 数据存储链接
+   * 
+   * @var StoreConnection
+   */
+  protected $conn;
+  
+  /**
+   * 数据查询语句
+   * 
+   * @var Query
+   */
+  protected $query;
+  
+  /**
+   * 
+   * @var resource
+   */
+  protected $result;
+  
+  /**
+   * 
+   * @param StoreConnection $conn
+   * @param Query $query
+   */
+  public function __construct(StoreConnection $conn, Query $query) {
+    $this->conn = $conn;
+    $this->query = $query;
+  }
+  
+	/* (non-PHPdoc)
+ * @see StoreStatementDatabase::execute()
+ */
+  public function execute($args = array()) {
+    // TODO Auto-generated method stub
+    $this->result = NULL;
+    
+    if ($args && is_array($args)) {
+      $parameter = $this->query->parameter();
+      foreach ($args as $key => $value) {
+        $parameter[$key] = $value;
+      }
+    }
+    
+    $result = $this->conn->execute($this->query);
+    if (!$this->conn->errorCode()) {
+      $this->result = $result;
+    }
+    
+    return (bool)$this->result;
+  }
+  
+}
+
+
