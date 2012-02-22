@@ -10,6 +10,31 @@
 abstract class Query {
   
   /**
+   * 插入
+   */
+  const INSERT = 0x001;
+  
+  /**
+   * 更新
+   */
+  const UPDATE = 0x002;
+  
+  /**
+   * 删除
+   */
+  const DELETE = 0x004;
+  
+  /**
+   * 查询
+   */
+  const SELECT = 0x008;
+  
+  /**
+   * 联合查询
+   */
+  const MULTISELECT = 0x010;
+  
+  /**
    * 标识符
    * 
    * @var string
@@ -56,9 +81,9 @@ abstract class Query {
   }
   
   /**
-   * 查询器名称
+   * 查询器类型
    */
-  abstract public function name();
+  abstract public function type();
   
   /**
    * 获取数据表名
@@ -100,41 +125,6 @@ abstract class Query {
   }
 
   /**
-   * 取得表别名
-   * @param string $table
-   *
-   * @return string
-   */
-//   protected function tablePrefix($table) {
-//     // 前缀+$table
-//     return $table;
-//   }
-
-  /**
-   * 取得字段类型
-   * @param string $table
-   * @param string $field
-   *
-   * @return mixed
-   */
-//   protected function fieldType($table, $field) {
-//     // 返回字段根据Schema定义的标准类型
-//     return 'string';
-//   }
-  
-  /**
-   * 取得值类型
-   * 
-   * @param mixed $value
-   * 
-   * @return mixed
-   */
-//   protected function valueType($value) {
-//     // 根据值的数据类型返回Schema标准类型
-//     return 'string';
-//   }
-  
-  /**
    * 设置查询标识符
    * 
    * @param string $identifier
@@ -166,7 +156,6 @@ abstract class Query {
    */
 //   public function execute() {
 //     //$this->end();
-//     return $this->_command->execute();
 //   }
 }
 
@@ -780,27 +769,42 @@ class QueryCondition implements IteratorAggregate, Countable {
 class InsertQuery extends Query {
   
   /**
+   * 数据字段
+   * 
    * @var array
    */
   protected $fields = array();
   
   /**
+   * 数据值
+   * 
    * @var array
    */
   protected $values = array();
+  
+  /**
+   * 默认数据
+   * 
+   * @var array
+   */
+  protected $defaults = array();
   
   /**
    * @var SelectQuery
    */
   protected $queryFrom;
 
+  public function __toString() {
+    return 'insert';
+  }
+  
   /**
    * (non-PHPdoc)
-   * @see Query::name()
+   * @see Query::masktype()
    */
-  public function name() {
+  public function type() {
     // TODO Auto-generated method stub
-    return 'insert';
+    return Query::INSERT;
   }
   
   /**
@@ -851,7 +855,8 @@ class InsertQuery extends Query {
           $insert_values[$field] = $this->parameter->add($field, $value);
         }
         else {
-          $insert_values[$field] = $this->parameter->add($field, NULL);
+          $value = isset($this->defaults[$field]) ? $this->defaults[$field] : NULL;
+          $insert_values[$field] = $this->parameter->add($field, $value);
         }
       }
       $this->values[] = $insert_values;
@@ -862,13 +867,37 @@ class InsertQuery extends Query {
       }
       
       foreach ($this->fields as $field) {
-        $insert_values[$field] = $this->parameter->add($field, $values[$field]);
+        $value = isset($values[$field]) ? $values[$field] : $this->defaults[$field];
+        $insert_values[$field] = $this->parameter->add($field, $value);
       }
       
       $this->values[] = $insert_values;
     }
     
     return $this;
+  }
+  
+  
+  /**
+   * 使用默认字段值
+   *
+   * @param array $defaultValues
+   */
+  public function useDefaults(array $defaultValues) {
+    foreach ($defaultValues as $field => $value) {
+      if (!isset($this->fields[$field])) {
+        $this->fields[$field] = $field;
+      }
+    }
+    
+    foreach ($this->values as $key => $values) {
+      foreach ($defaultValues as $field => $value) {
+        if (!isset($values[$field]))
+          $this->values[$key][$field] = $this->parameter->add($field, $value);
+      }
+    }
+    
+    $this->defaults = $defaultValues;
   }
   
   /**
@@ -890,7 +919,7 @@ class InsertQuery extends Query {
    * @return array
    */
   final public function &getFields() {
-    // 返回标准field=>type字段数组
+    // 返回标准field=>masktype字段数组
     return $this->fields;
   }
   
@@ -926,6 +955,10 @@ class InsertQuery extends Query {
 }
 
 class ReplaceQuery extends InsertQuery {
+  
+  public function __toString() {
+    return 'replace';
+  }
   
 }
 
@@ -972,14 +1005,18 @@ class UpdateQuery extends Query {
     
     $this->condition = new QueryCondition($this->parameter, $this);
   }
-
+  
+  public function __toString() {
+    return 'update';
+  }
+  
   /**
    * (non-PHPdoc)
-   * @see Query::name()
+   * @see Query::masktype()
    */
-  public function name() {
+  public function type() {
     // TODO Auto-generated method stub
-    return 'update';
+    return Query::UPDATE;
   }
   
   /**
@@ -1110,14 +1147,18 @@ class DeleteQuery extends Query {
     
     $this->condition = new QueryCondition($this->parameter, $this);
   }
-
+  
+  public function __toString() {
+    return 'delete';
+  }
+  
   /**
    * (non-PHPdoc)
-   * @see Query::name()
+   * @see Query::masktype()
    */
-  public function name() {
+  public function type() {
     // TODO Auto-generated method stub
-    return 'delete';
+    return Query::DELETE;
   }
 
 /**
@@ -1185,7 +1226,7 @@ interface MultiSelectQueryInterface {
   /**
    * 
    * 
-   * @param string $type
+   * @param string $masktype
    * @param string $table
    * @param string $alias
    * @param string $where
@@ -1367,14 +1408,18 @@ class SelectQuery extends Query {
     $this->condition = new QueryCondition($this->parameter, $this);
     $this->having = new QueryCondition($this->parameter, $this);
   }
-
+  
+  public function __toString() {
+    return 'select';
+  }
+  
   /**
    * (non-PHPdoc)
-   * @see Query::name()
+   * @see Query::masktype()
    */
-  public function name() {
+  public function type() {
     // TODO Auto-generated method stub
-    return 'select';
+    return Query::SELECT;
   }
   
   
@@ -1639,14 +1684,18 @@ class MultiSelectQuery extends SelectQuery implements MultiSelectQueryInterface 
     
     $this->table_alias = $alias;
   }
-
+  
+  public function __toString() {
+    return 'multiselect';
+  }
+  
   /**
    * (non-PHPdoc)
-   * @see Query::name()
+   * @see Query::masktype()
    */
-  public function name() {
+  public function type() {
     // TODO Auto-generated method stub
-    return 'multiselect';
+    return Query::MULTISELECT;
   }
   
   /**
@@ -1716,7 +1765,7 @@ class MultiSelectQuery extends SelectQuery implements MultiSelectQueryInterface 
     }
     
     $this->joins[$alias] = array(
-        'type' => $type,
+        'masktype' => $type,
         'table' => $table,
         'alias' => $alias,
         'fields' => array(),
@@ -1790,7 +1839,7 @@ class MultiSelectQuery extends SelectQuery implements MultiSelectQueryInterface 
     $query->end();
     $this->unions[] = array(
         'query' => $query,
-        'type' => 'DISTINCT'
+        'masktype' => 'DISTINCT'
         );
     
     return $this;
@@ -1805,7 +1854,7 @@ class MultiSelectQuery extends SelectQuery implements MultiSelectQueryInterface 
     $query->end();
     $this->unions[] = array(
         'query' => $query,
-        'type' => 'ALL'
+        'masktype' => 'ALL'
         );
     
     return $this;
