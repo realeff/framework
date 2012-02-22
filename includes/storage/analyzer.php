@@ -27,6 +27,27 @@
  *   [WHERE where] [GROUP BY group [HAVING having]] [ORDER BY order [ASC | DESC]] [LIMIT offset, count];
  */
 
+interface QueryAnalyzerInterface {
+  /**
+   * 支持查询分析类型
+   * 
+   * @return string
+   */
+  public function masktype();
+  
+  /**
+   * 设置查询语句
+   * 
+   * @param Query $query
+   */
+  public function setQuery(Query $query);
+  
+  /**
+   * 清理查询分析器
+   */
+  public function clean();
+  
+}
 
 /**
  * SQL分析器
@@ -37,35 +58,19 @@
 abstract class SQLAnalyzer {
   
   /**
-   * 注释
+   * 查询语句
    * 
-   * @var array
+   * @var Query
    */
-  protected $comments = array();
+  protected $query;
   
   /**
-   * 数据表
-   * 
-   * @var string
-   */
-  protected $table = '';
-  
-  /**
-   * 查询参数
-   * 
-   * @var QueryParameter
-   */
-  protected $parameter;
-  
-  /**
-   * 构造一个SQL查询分析器
+   * 构造一个查询语句分析器
    * 
    * @param Query $query
    */
-  public function __construct(Query $query) {
-    $this->comments =& $query->getComments();
-    $this->table = self::escapeName($query->getTable());
-    $this->parameter = $query->parameter();
+  public function __construct(Query $query = NULL) {
+    $this->query = $query;
   }
   
   /**
@@ -109,7 +114,7 @@ abstract class SQLAnalyzer {
    * 
    * @return string
    */
-  abstract public function toString();
+  abstract protected function queryString();
   
   /**
    * 返回查询参数组
@@ -118,8 +123,11 @@ abstract class SQLAnalyzer {
    */
   public function arguments() {
     $arguments = array();
-    foreach ($this->parameter as $field => $value) {
-      $arguments[':'. $field] = $value;
+    if (isset($this->query)) {
+      $params = $this->query->parameter();
+      foreach ($params as $field => $value) {
+        $arguments[':'. $field] = $value;
+      }
     }
     
     return $arguments;
@@ -129,9 +137,16 @@ abstract class SQLAnalyzer {
    * 取得查询字符串
    */
   public function __toString() {
-    $comment = self::makeComment($this->comments);
+    if (!isset($this->query)) {
+      return NULL;
+    }
     
-    return $comment . $this->toString();
+    // 如果查询器有已经缓存的则直接取已缓存的，否则再进行转换语句。
+    //$this->identifier;
+    
+    $comment = self::makeComment($this->query->getComments());
+    
+    return $comment . $this->queryString();
   }
   
 }
@@ -154,6 +169,10 @@ class SQLConditionAnalyzer extends SQLAnalyzer {
   
   final public function __construct(QueryCondition $condition) {
     $this->condition = $condition;
+  }
+  
+  public function __toString() {
+    return $this->queryString();
   }
   
   final public function &defaultOperator() {
@@ -202,7 +221,7 @@ class SQLConditionAnalyzer extends SQLAnalyzer {
    *
    * @return string
    */
-  public function toString() {
+  protected function queryString() {
     static $conjunctions = array(
         QueryCondition::_AND_ => ' AND ',
         QueryCondition::_OR_  => ' OR '
@@ -259,174 +278,154 @@ class SQLConditionAnalyzer extends SQLAnalyzer {
  * @author realeff
  *
  */
-class SQLInsertAnalyzer extends SQLAnalyzer {
-  
-  /**
-   * 数据字段
-   * 
-   * @var array
-   */
-  protected $fields;
-  
-  /**
-   * 数据值数组
-   * 
-   * @var array
-   */
-  protected $values;
-  
-  /**
-   * 默认数据
-   * 
-   * @var array
-   */
-  protected $defaults = array();
-  
-  /**
-   * 筛选查询
-   * 
-   * @var SelectQuery
-   */
-  protected $queryFrom;
-  
-  
-  public function __construct(InsertQuery $query) {
-    parent::__construct($query);
-    
-    $this->fields =& $query->getFields();
-    $this->values =& $query->getValues();
-    $this->queryFrom = $query->select();
-  }
+class SQLInsertAnalyzer extends SQLAnalyzer implements QueryAnalyzerInterface {
   
   /**
    * 取得筛选查询SQL分析器
    * 
    * @return SelectSQLAnalyzer
    */
-  public function fromSQLAnalyzer() {
-    return new SQLSelectAnalyzer($this->queryFrom);
-  }
-  
-  /**
-   * 使用默认字段值
-   * 
-   * @param array $defaultValues
-   */
-  public function useDefaults(array $defaultValues) {
-    foreach ($defaultValues as $field => $value) {
-      foreach ($this->values as $key => $values) {
-        if (!isset($values[$field]))
-          $this->values[$key][$field] = $this->parameter->add($field, $value);
-      }
-    }
-    
-    $this->defaults = $defaultValues;
+  public function queryAnalyzer(SelectQuery $query) {
+    return new SQLSelectAnalyzer($query);
   }
 
   /**
    * (non-PHPdoc)
-   * @see SQLAnalyzer::toString()
+   * @see SQLAnalyzer::queryString()
    */
-  public function toString() {
+  protected function queryString() {
     // TODO Auto-generated method stub
-    if (!empty($this->queryFrom)) {
-      return 'INSERT INTO {'. $this->table .'} ('. implode(', ', $this->fields) .') '. $this->fromSQLAnalyzer();
+    if (!($this->query instanceof InsertQuery)) {
+      return NULL;
     }
     
-    $fields = $this->fields;
-    foreach ($this->defaults as $field => $value) {
-      !isset($fields[$field]) && ($fields[$field] = $field);
-    }
-    
-    $pieces = array();
+    $table = self::escapeName($this->query->getTable());
+    $fields = $this->query->getFields();
     foreach ($fields as $key => $field) {
       $fields[$key] = self::escapeName($field);
     }
+    
+    $query = $this->query->select();
+    if (!empty($query)) {
+      return 'INSERT INTO {'. $table .'} ('. implode(', ', $fields) .') '. $this->queryAnalyzer($query);
+    }
+    
+    $pieces = array();
     foreach ($this->values as $values) {
       $placeholders = array();
       foreach ($fields as $field) {
         $placeholders[] = $values[$field];
       }
       
-      $pieces[] = 'INSERT INTO {'. $this->table .'} ('. implode(', ', $fields) .') VALUES (:' . implode(', :', $values) . ')';
+      $pieces[] = 'INSERT INTO {'. $table .'} ('. implode(', ', $fields) .') VALUES (:' . implode(', :', $values) . ')';
     }
     
     return implode(";\n", $pieces);
   }
-  
-}
 
-class SQLUpdateAnalyzer extends SQLAnalyzer {
-  
   /**
-   * 数据字段
-   *
-   * @var array
+   * (non-PHPdoc)
+   * @see QueryAnalyzerInterface::masktype()
    */
-  protected $fields;
-  
-  /**
-   * 数据表达式字段参数
-   *
-   * @var array
-   */
-  protected $arguments;
-  
-  /**
-   * 查询条件
-   * 
-   * @var QueryCondition
-   */
-  protected $condition;
-  
-  
-  public function __construct(UpdateQuery $query) {
-    parent::__construct($query);
-    
-    $this->fields =& $query->getFields();
-    $this->arguments =& $query->getArguments();// 字段表达式参数
-    $this->condition = $query->where();
-  }
-  
-  
-  public function conditionAnalyzer() {
-    return new SQLConditionAnalyzer($this->condition);
+  public function masktype() {
+    // TODO Auto-generated method stub
+    return Query::INSERT;
   }
 
   /**
    * (non-PHPdoc)
-   * @see SQLAnalyzer::toString()
+   * @see QueryAnalyzerInterface::clean()
    */
-  public function toString() {
+  public function clean() {
     // TODO Auto-generated method stub
-    $fields = array();
-    foreach ($this->fields as $field => $value) {
-      if (isset($this->arguments[$field])) {
-        $fields[] = self::escapeName($field) .'='. $value;
-      }
-      else {
-        $fields[] = self::escapeName($field) .'=:'. $value;
-      }
-    }
-    
-    $sql = 'UPDATE {'. $this->table .'} SET '. implode(', ', $fields);
-    if (count($this->condition) > 0) {
-      $sql .= ' WHERE '. $this->conditionAnalyzer();
-    }
-    
-    return $sql;
+    $this->query = NULL;
+  }
+
+  /**
+   * (non-PHPdoc)
+   * @see QueryAnalyzerInterface::setQuery()
+   */
+  public function setQuery(Query $query) {
+    // TODO Auto-generated method stub
+    $this->query = $query;
   }
   
 }
 
-class SQLDeleteAnalyzer extends SQLAnalyzer {
+class SQLUpdateAnalyzer extends SQLAnalyzer implements QueryAnalyzerInterface {
   
   /**
-   * 查询条件
-   *
-   * @var QueryCondition
+   * 条件分析器
+   * 
+   * @param QueryCondition $condition
    */
-  protected $condition;
+  public function conditionAnalyzer(QueryCondition $condition) {
+    return new SQLConditionAnalyzer($condition);
+  }
+
+  /**
+   * (non-PHPdoc)
+   * @see SQLAnalyzer::queryString()
+   */
+  protected function queryString() {
+    // TODO Auto-generated method stub
+    if (!($this->query instanceof UpdateQuery)) {
+      return NULL;
+    }
+    
+    $table = self::escapeName($this->query->getTable());
+    $fields = $this->query->getFields();
+    $arguments = $this->query->getArguments();
+    $condition = $this->query->where();
+    
+    $updateFields = array();
+    foreach ($fields as $field => $value) {
+      if (isset($arguments[$field])) {
+        $updateFields[] = self::escapeName($field) .'='. $value;
+      }
+      else {
+        $updateFields[] = self::escapeName($field) .'=:'. $value;
+      }
+    }
+    
+    $sql = 'UPDATE {'. $table .'} SET '. implode(', ', $updateFields);
+    if (count($condition) > 0) {
+      $sql .= ' WHERE '. $this->conditionAnalyzer($condition);
+    }
+    
+    return $sql;
+  }
+
+  /**
+   * (non-PHPdoc)
+   * @see QueryAnalyzerInterface::masktype()
+   */
+  public function masktype() {
+    // TODO Auto-generated method stub
+    return Query::UPDATE;
+  }
+
+  /**
+   * (non-PHPdoc)
+   * @see QueryAnalyzerInterface::clean()
+   */
+  public function clean() {
+    // TODO Auto-generated method stub
+    $this->query = NULL;
+  }
+
+  /**
+   * (non-PHPdoc)
+   * @see QueryAnalyzerInterface::setQuery()
+   */
+  public function setQuery(Query $query) {
+    // TODO Auto-generated method stub
+    $this->query = $query;
+  }
+  
+}
+
+class SQLDeleteAnalyzer extends SQLAnalyzer implements QueryAnalyzerInterface {
   
   /**
    * 启动事务
@@ -436,14 +435,8 @@ class SQLDeleteAnalyzer extends SQLAnalyzer {
   protected $transaction = FALSE;
   
   
-  public function __construct(DeleteQuery $query) {
-    parent::__construct($query);
-    
-    $this->condition = $query->where();
-  }
-  
-  public function conditionAnalyzer() {
-    return new SQLConditionAnalyzer($this->condition);
+  public function conditionAnalyzer(QueryCondition $condition) {
+    return new SQLConditionAnalyzer($condition);
   }
   
   public function transaction($transaction = TRUE) {
@@ -452,93 +445,58 @@ class SQLDeleteAnalyzer extends SQLAnalyzer {
   
   /**
    * (non-PHPdoc)
-   * @see SQLAnalyzer::toString()
+   * @see SQLAnalyzer::queryString()
    */
-  public function toString() {
+  protected function queryString() {
     // TODO Auto-generated method stub
-    $sql = 'DELETE FROM {'. $this->table .'} ';
-    if (count($this->condition) > 0) {
-      $sql .= ' WHERE '. $this->conditionAnalyzer();
+    if (!($this->query instanceof DeleteQuery)) {
+      return NULL;
+    }
+    
+    $table = self::escapeName($this->query->getTable());
+    $condition = $this->query->where();
+    
+    $sql = 'DELETE FROM {'. $table .'} ';
+    if (count($condition) > 0) {
+      $sql .= ' WHERE '. $this->conditionAnalyzer($condition);
     }
     else if (!$this->transaction) {
-      $sql = 'TRUNCATE {' . $this->table . '} ';
+      $sql = 'TRUNCATE {' . $table . '} ';
     }
     
     return $sql;
   }
+
+  /**
+   * (non-PHPdoc)
+   * @see QueryAnalyzerInterface::masktype()
+   */
+  public function masktype() {
+    // TODO Auto-generated method stub
+    return Query::DELETE;
+  }
+
+  /**
+   * (non-PHPdoc)
+   * @see QueryAnalyzerInterface::clean()
+   */
+  public function clean() {
+    // TODO Auto-generated method stub
+    $this->query = NULL;
+  }
+
+  /**
+   * (non-PHPdoc)
+   * @see QueryAnalyzerInterface::setQuery()
+   */
+  public function setQuery(Query $query) {
+    // TODO Auto-generated method stub
+    $this->query = $query;
+  }
   
 }
 
-class SQLSelectAnalyzer extends SQLAnalyzer {
-  
-  /**
-   * 
-   * @var SelectQuery
-   */
-  protected $query;
-  
-  /**
-   * 数据字段
-   *
-   * @var array
-   */
-  protected $fields;
-  
-  /**
-   * 数据表达式字段参数
-   *
-   * @var array
-   */
-  protected $arguments;
-  
-  /**
-   * 查询条件
-   * 
-   * @var QueryCondition
-   */
-  protected $condition;
-  
-  /**
-   * 数据分组
-   *
-   * @var array
-   */
-  protected $groups;
-  
-  /**
-   * 分组条件
-   *
-   * @var QueryCondition
-   */
-  protected $having;
-  
-  /**
-   * 数据排序
-   *
-   * @var array
-   */
-  protected $orders;
-  
-  /**
-   * 查询数量限制
-   * 
-   * @var array
-   */
-  protected $limit;
-  
-  
-  final public function __construct(SelectQuery $query, QueryPlaceholder $placeholder = NULL) {
-    parent::__construct($query);
-    
-    $this->query = $query;
-    $this->fields =& $query->getFields();
-    $this->arguments =& $query->getArguments();
-    $this->condition = $query->where();
-    $this->groups =& $query->getGroups();
-    $this->having = $query->having();
-    $this->orders =& $query->getOrders();
-    $this->limit =& $query->getLimit();
-  }
+class SQLSelectAnalyzer extends SQLAnalyzer implements QueryAnalyzerInterface {
   
   public function conditionAnalyzer(QueryCondition $condition) {
     return new SQLConditionAnalyzer($condition);
@@ -557,24 +515,31 @@ class SQLSelectAnalyzer extends SQLAnalyzer {
   
   /**
    * (non-PHPdoc)
-   * @see SQLAnalyzer::toString()
+   * @see SQLAnalyzer::queryString()
    */
-  public function toString() {
+  protected function queryString() {
     // TODO Auto-generated method stub
+    if (!($this->query instanceof SelectQuery)) {
+      return NULL;
+    }
+    
+    $table = self::escapeName($this->query->getTable());
     $table_alias = '';
+    
     if ($this->query instanceof MultiSelectQueryInterface) {
       $table_alias = self::escapeName($this->query->getAlias()) .'.';
     }
     
     $fields = array();
-    foreach ($this->fields as $alias => $field) {
+    $arguments = $this->query->getArguments();
+    foreach ($this->query->getFields() as $alias => $field) {
       if ($field == '*') {
         $fields[] = $table_alias .$field;
         continue;
       }
       
       $field = self::escapeName($field);
-      if (isset($this->arguments[$alias])) {
+      if (isset($arguments[$alias])) {
         $fields[] = $field .' AS '. self::escapeName($alias);
       }
       else {
@@ -584,7 +549,7 @@ class SQLSelectAnalyzer extends SQLAnalyzer {
     }
     
     $tables = array();
-    $tables[] = '{'. $this->table .'}'. (empty($this->table_alias) ? '' : ' '. $this->table_alias);
+    $tables[] = '{'. $table .'}'. (empty($table_alias) ? '' : ' '. $table_alias);
     
     $unions = array();
     if ($this->query instanceof MultiSelectQueryInterface) {
@@ -604,7 +569,7 @@ class SQLSelectAnalyzer extends SQLAnalyzer {
           $fields[] = $table_alias .'.'. $field .($alias == $field ? '' : ' AS '. $alias);
         }
         
-        $table_string = self::escapeName(strtoupper($join['type'])) .' JOIN ';
+        $table_string = self::escapeName(strtoupper($join['masktype'])) .' JOIN ';
         
         if ($join['table'] instanceof SelectQuery) {
           $query = new $this($join['table']);
@@ -624,7 +589,7 @@ class SQLSelectAnalyzer extends SQLAnalyzer {
     }
     
     $orders = array();
-    foreach ($this->orders as $field => $direction) {
+    foreach ($this->query->getOrders() as $field => $direction) {
       $field = self::escapeName($field);
       if ($direction === SelectQuery::RANDOM) {
         $fields[] = 'RAND() AS '. $field;
@@ -634,31 +599,36 @@ class SQLSelectAnalyzer extends SQLAnalyzer {
     }
     
     $sql = 'SELECT '. ($this->query->getDistinct() ? 'DISTINCT ' : '') .implode(', ', $fields) .' FROM '. implode(' ', $tables);
-    if (count($this->condition) > 0) {
-      $sql .= ' WHERE '. $this->conditionAnalyzer($this->condition);
+    
+    $condition = $this->query->where();
+    if (count($condition) > 0) {
+      $sql .= ' WHERE '. $this->conditionAnalyzer($condition);
     }
     
-    if ($this->groups) {
-      $sql .= ' GROUP BY '. implode(', ', $this->groups);
+    $groups = $this->query->getGroups();
+    if ($groups) {
+      $sql .= ' GROUP BY '. implode(', ', $groups);
     }
     
-    if (count($this->having) > 0) {
-      $sql .= ' HAVING '. $this->conditionAnalyzer($this->having);
+    $having = $this->query->having();
+    if (count($having) > 0) {
+      $sql .= ' HAVING '. $this->conditionAnalyzer($having);
     }
     
     if ($orders) {
       $sql .= ' ORDER BY '. implode(', ', $orders);
     }
     
-    if ($this->limit) {
-      list($offset, $row_count) = $this->limit;
+    $limit = $this->query->getLimit();
+    if ($limit) {
+      list($offset, $row_count) = $limit;
       $sql .= " LIMIT " . (int)$row_count . " OFFSET " . (int)$offset;
     }
     
     if ($unions) {
       foreach ($unions as $union) {
         $query = new $this($union['query'], $this->placeholder);
-        $sql .= ' UNION ' . $union['type'] . ' ' . (string)$query;
+        $sql .= ' UNION ' . $union['masktype'] . ' ' . (string)$query;
       }
     }
     
@@ -667,6 +637,33 @@ class SQLSelectAnalyzer extends SQLAnalyzer {
     }
     
     return $sql;
+  }
+
+  /**
+   * (non-PHPdoc)
+   * @see QueryAnalyzerInterface::masktype()
+   */
+  public function masktype() {
+    // TODO Auto-generated method stub
+    return Query::SELECT | Query::MULTISELECT;
+  }
+
+  /**
+   * (non-PHPdoc)
+   * @see QueryAnalyzerInterface::clean()
+   */
+  public function clean() {
+    // TODO Auto-generated method stub
+    $this->query = NULL;
+  }
+
+  /**
+   * (non-PHPdoc)
+   * @see QueryAnalyzerInterface::setQuery()
+   */
+  public function setQuery(Query $query) {
+    // TODO Auto-generated method stub
+    $this->query = $query;
   }
   
 }
