@@ -1,18 +1,6 @@
 <?php
 
-class StoreStatementDatabase_mysql extends StoreStatementDatabase implements StoreStatementInterface {
-  
-  protected $result;
-  
-	/* (non-PHPdoc)
- * @see StoreStatementDatabase::execute()
- */
-  public function execute(array $args) {
-    // TODO Auto-generated method stub
-    $this->result = mysql_query($this->expandQueryArguments($args),  $this->connection->getResource());
-    
-    return (bool)$this->result;
-  }
+class StoreStatementDatabase_mysql extends StoreStatementDatabase {
 
 	/* (non-PHPdoc)
  * @see StoreStatementDatabase::fetchArray()

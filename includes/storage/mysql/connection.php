@@ -70,6 +70,12 @@ class StoreConnection_mysql extends StoreConnection  {
     $this->password = $options['password'];
     //$dsn .= ';dbname=' . $conn_options['dbname'];
     $this->dbname = $options['dbname'];
+    
+    // 注册查询语句分析器
+    $this->registerAnalyzer(new SQLSelectAnalyzer());
+    $this->registerAnalyzer(new SQLInsertAnalyzer_mysql());
+    $this->registerAnalyzer(new SQLUpdateAnalyzer());
+    $this->registerAnalyzer(new SQLDeleteAnalyzer());
   }
   
   /**
@@ -125,16 +131,8 @@ class StoreConnection_mysql extends StoreConnection  {
 
   /**
    * (non-PHPdoc)
-   * @see StoreConnection::getCommand()
+   * @see StoreConnection::ping()
    */
-  public function querier($name) {
-    // TODO Auto-generated method stub
-    return new StoreQuerier_mysql($this, $name);
-  }
-
-/* (non-PHPdoc)
- * @see StoreConnection::ping()
- */
   public function ping() {
     // TODO Auto-generated method stub
     return mysql_ping($this->resource);
@@ -175,6 +173,67 @@ class StoreConnection_mysql extends StoreConnection  {
   public function schema() {
     // TODO Auto-generated method stub
     
+  }
+
+  /**
+   * (non-PHPdoc)
+   * @see StoreConnection::lastInsertId()
+   */
+  public function lastInsertId() {
+    // TODO Auto-generated method stub
+    return mysql_insert_id($this->resource);
+  }
+
+  /**
+   * (non-PHPdoc)
+   * @see StoreConnection::prepare()
+   */
+  public function prepare(Query $query) {
+    // TODO Auto-generated method stub
+    return new StoreStatementDatabase_mysql($this, $query);
+  }
+
+  /**
+   * (non-PHPdoc)
+   * @see StoreConnection::affectedRows()
+   */
+  public function affectedRows() {
+    // TODO Auto-generated method stub
+    return mysql_affected_rows($this->resource);
+  }
+
+  /**
+   * (non-PHPdoc)
+   * @see StoreConnection::execute()
+   */
+  public function execute(Query $query) {
+    // TODO Auto-generated method stub
+    $analyzer = $this->analyzer($query);
+    // 检查分析器是否SQLAnalyzer
+    
+    $sql = (string)$analyzer;
+    $args = $analyzer->arguments();
+    $analyzer->clean();
+    // 完成数据表前缀
+    $sql = $this->prefixTables($sql);
+    // 加入参数数据
+    
+    $result = mysql_query($sql, $this->resource);
+    if (!$this->errorCode()) {
+      return $result;
+    }
+    else {
+      return FALSE;
+    }
+  }
+
+  /**
+   * (non-PHPdoc)
+   * @see StoreConnection::temporary()
+   */
+  public function temporary($temporaryTable, SelectQuery $query) {
+    // TODO Auto-generated method stub
+    //preg_replace('/^SELECT/i', 'CREATE TEMPORARY TABLE {' . $tablename . '} Engine=MEMORY SELECT', $query
   }
 
 }

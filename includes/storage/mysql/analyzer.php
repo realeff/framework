@@ -4,9 +4,9 @@ class SQLInsertAnalyzer_mysql extends SQLInsertAnalyzer {
 
   /**
    * (non-PHPdoc)
-   * @see SQLInsertAnalyzer::toString()
+   * @see SQLInsertAnalyzer::queryString()
    */
-  public function toString() {
+  protected function queryString() {
     // TODO Auto-generated method stub
     if (!empty($this->queryFrom)) {
       return 'INSERT INTO {'. $this->table .'} ('. implode(', ', $this->fields) .') '. $this->fromSQLAnalyzer();
