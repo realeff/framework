@@ -160,9 +160,34 @@ class StoreConnection_mysql extends StoreConnection  {
    * (non-PHPdoc)
    * @see StoreConnection::quote()
    */
-  public function quote($string, $type = NULL) {
+  public function quote($value, $type = NULL) {
     // TODO Auto-generated method stub
+    if (!isset($type)) {
+      $type = $this->dataType($value);
+    }
     
+    switch ($type) {
+      case self::PARAM_NULL:
+        return "''";
+//       case self::PARAM_BOOL:
+//         return (bool)$value;
+//       case self::PARAM_INT:
+//         return (int)$value;
+//       case self::PARAM_FLOAT:
+//         return (float)$value;
+//       case self::PARAM_DOUBLE:
+//         return (double)$value;
+      case self::PARAM_NUMERIC:
+        return !preg_match('/x/i', $value) ? $value : '0';
+      case self::PARAM_LOB:
+        if (!is_string($value)) {
+          $value = serialize($value);
+        }
+      case self::PARAM_STR:
+        return "'". mysql_real_escape_string($value, $this->resource) ."'";
+    }
+    
+    return $value;
   }
 
 
@@ -202,6 +227,24 @@ class StoreConnection_mysql extends StoreConnection  {
     return mysql_affected_rows($this->resource);
   }
 
+  private function _bind_params_callback($match, $init = FALSE) {
+    static $args = array();
+    if ($init) {
+      $args = $match;
+      return;
+    }
+    
+    $match = $match[1];
+    if ($match == '?') {
+      $match = array_shift($args);
+    }
+    else {
+      $match = $args[$match];
+    }
+    
+    return $this->quote($match);
+  }
+  
   /**
    * (non-PHPdoc)
    * @see StoreConnection::execute()
@@ -210,13 +253,29 @@ class StoreConnection_mysql extends StoreConnection  {
     // TODO Auto-generated method stub
     $analyzer = $this->analyzer($query);
     // 检查分析器是否SQLAnalyzer
+    if (!($analyzer instanceof SQLAnalyzer)) {
+      return FALSE;
+    }
     
+    $analyzer->setQuery($query);
     $sql = (string)$analyzer;
     $args = $analyzer->arguments();
     $analyzer->clean();
     // 完成数据表前缀
     $sql = $this->prefixTables($sql);
-    // 加入参数数据
+    // 绑定参数数据
+    foreach (array_filter($args, 'is_array') as $key => $array) {
+      $new_keys = array();
+      foreach ($array as $i => $value) {
+        $new_keys[$key .'_'. $i] = $value;
+      }
+      $sql = preg_replace('#' . $key . '\b#', implode(', ', array_keys($new_keys)), $sql);
+      unset($args[$key]);
+      $args += $new_keys;
+    }
+    
+    $this->_bind_params_callback($args, TRUE);
+    $sql = preg_replace_callback(STORE_PARAM_REGEXP, array($this, '_bind_params_callback'), $sql);
     
     $result = mysql_query($sql, $this->resource);
     if (!$this->errorCode()) {
