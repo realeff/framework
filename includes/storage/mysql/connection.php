@@ -227,7 +227,7 @@ class StoreConnection_mysql extends StoreConnection  {
     return mysql_affected_rows($this->resource);
   }
 
-  private function _bind_params_callback($match, $init = FALSE) {
+  private function _bind_argument_callback($match, $init = FALSE) {
     static $args = array();
     if ($init) {
       $args = $match;
@@ -240,6 +240,7 @@ class StoreConnection_mysql extends StoreConnection  {
     }
     else {
       $match = $args[$match];
+      unset($args[$match]);
     }
     
     return $this->quote($match);
@@ -274,8 +275,8 @@ class StoreConnection_mysql extends StoreConnection  {
       $args += $new_keys;
     }
     
-    $this->_bind_params_callback($args, TRUE);
-    $sql = preg_replace_callback(STORE_PARAM_REGEXP, array($this, '_bind_params_callback'), $sql);
+    $this->_bind_argument_callback($args, TRUE);
+    $sql = preg_replace_callback(STORE_PARAM_REGEXP, array($this, '_bind_argument_callback'), $sql);
     
     $result = mysql_query($sql, $this->resource);
     if (!$this->errorCode()) {
