@@ -581,7 +581,13 @@ class SQLSelectAnalyzer extends SQLAnalyzer implements QueryAnalyzerInterface {
         $table_string .= ' '. $table_alias;
         
         if (!empty($join['where'])) {
-          $table_string .= ' ON '. $join['where'];
+          $table_string .= ' ON ';
+          if ($join['where'] instanceof QueryCondition) {
+            $table_string .= $this->conditionAnalyzer($join['where']);
+          }
+          else {
+            $table_string .= $join['where'];
+          }
         }
         
         $tables[] = $table_string;
