@@ -188,6 +188,10 @@ class QueryParameter implements Iterator, ArrayAccess, Countable {
    * @return string
    */
   protected function uniqueName($name = 'param') {
+    $pos = strrpos($name, '.');
+    if ($pos !== FALSE) {
+      $name = substr($name, $pos+1);
+    }
     if (!isset($this->_counters[$name])) {
       $this->_counters[$name] = 0;
     }
