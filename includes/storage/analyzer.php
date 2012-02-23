@@ -549,7 +549,7 @@ class SQLSelectAnalyzer extends SQLAnalyzer implements QueryAnalyzerInterface {
     }
     
     $tables = array();
-    $tables[] = '{'. $table .'}'. (empty($table_alias) ? '' : ' '. $table_alias);
+    $tables[] = '{'. $table .'}'. (empty($table_alias) ? '' : ' '. trim($table_alias, '.'));
     
     $unions = array();
     if ($this->query instanceof MultiSelectQueryInterface) {
@@ -560,7 +560,7 @@ class SQLSelectAnalyzer extends SQLAnalyzer implements QueryAnalyzerInterface {
         $table_alias = self::escapeName($join['alias']);
         foreach ($join['fields'] as $alias => $field) {
           if ($field == '*') {
-            $fields[] = $table_alias .$field;
+            $fields[] = $table_alias .'.'. $field;
             continue;
           }
           
