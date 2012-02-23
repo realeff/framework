@@ -57,6 +57,9 @@ interface QueryAnalyzerInterface {
  */
 abstract class SQLAnalyzer {
   
+  private static $_queryStrings;
+  private static $_modefied = FALSE;
+  
   /**
    * 查询语句
    * 
@@ -71,6 +74,16 @@ abstract class SQLAnalyzer {
    */
   public function __construct(Query $query = NULL) {
     $this->query = $query;
+    
+    if (!isset(self::$_queryStrings)) {
+      self::$_queryStrings = _realeff_read_phpdata('query_string');
+    }
+  }
+  
+  public function __destruct() {
+    if (self::$_modefied) {
+      _realeff_write_phpdata('query_string', self::$_queryStrings);
+    }
   }
   
   /**
@@ -141,11 +154,18 @@ abstract class SQLAnalyzer {
     }
     
     // 如果查询器有已经缓存的则直接取已缓存的，否则再进行转换语句。
-    //$this->identifier;
+    $identifier = $this->query->getIdentifier();
+    if ($identifier && isset(self::$_queryStrings[$identifier])) {
+      return self::$_queryStrings[$identifier];
+    }
     
     $comment = self::makeComment($this->query->getComments());
+    $queryString = $comment . $this->queryString();
     
-    return $comment . $this->queryString();
+    self::$_queryStrings[$identifier] = $queryString;
+    self::$_modefied = TRUE;
+    
+    return $queryString;
   }
   
 }
