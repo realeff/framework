@@ -9,6 +9,8 @@ include_once STORE_DRIVER_PATH .'/query.php';
 include_once STORE_DRIVER_PATH .'/analyzer.php';
 
 
+define('STORE_PARAM_REGEXP', '/(:\w+|\?)/');
+
 abstract class Store {
   
   /**
@@ -151,7 +153,6 @@ abstract class Store {
     // 驱动文件包括
     static $files = array(
         'connection.php',
-        'querier.php',
         'schema.php',
         'statement.php',
         'analyzer.php'
@@ -188,6 +189,7 @@ abstract class Store {
     // 实例化存储链接
     $class = 'StoreConnection_'. $options['driver'];
     $connection = new $class($options);
+    $connection->open();
     
     // 日志功能
     
@@ -289,10 +291,11 @@ abstract class Store {
       self::switchSystem();
     }
     
+    $system = self::$activeSystem;
     $target = 'default';
-    if (isset(self::$dataQuerier[self::$activeSystem][$name])) {
+    if (isset(self::$dataQuerier[$system][$name])) {
       // 根据查询器切换目标存储器
-      $target = self::$dataQuerier[self::$activeSystem][$name];
+      $target = self::$dataQuerier[$system][$name];
     }
     
     return new StoreQuerier(self::getConnection($target), $name);
@@ -314,6 +317,14 @@ abstract class Store {
  */
 abstract class StoreConnection {
   
+  const PARAM_NULL = 0;
+  const PARAM_INT = 1;
+  const PARAM_STR = 2;
+  const PARAM_LOB = 3;
+  const PARAM_BOOL = 5;
+  const PARAM_FLOAT = 6;
+  const PARAM_DOUBLE = 7;
+  const PARAM_NUMERIC = 8;
   
   /**
    * 这是存储设备资源
@@ -352,9 +363,6 @@ abstract class StoreConnection {
     
     // 设置数据表前缀
     //$this->setPrefix($prefix);
-    
-    // 打开存储设备链接
-    $this->open();
   }
   
   /**
@@ -480,18 +488,98 @@ abstract class StoreConnection {
    * @return string 数据表全名
    */
   public function prefixTables($str) {
+    return str_replace(array('{', '}'), array('', ''), $str);
+  }
+  
+  /**
+   * 返回数据类型
+   * 
+   * @param mixed $data
+   */
+  protected function dataType(&$data) {
     
+    if (is_null($data)) {
+      return self::PARAM_NULL;
+    }
+    if (is_bool($data)) {
+      return self::PARAM_BOOL;
+    }
+    if (is_int($data)) {
+      return self::PARAM_INT;
+    }
+    if (is_float($data)) {
+      return self::PARAM_FLOAT;
+    }
+    if (is_double($data)) {
+      return self::PARAM_DOUBLE;
+    }
+    if (is_numeric($data)) {
+      return self::PARAM_NUMERIC;
+    }
+    if (is_string($data)) {
+      return self::PARAM_STR;
+    }
+    
+    return self::PARAM_LOB;
   }
   
   /**
    * 
    * 
-   * @param string $string
+   * @param mixed $value
    * @param int $type
    * 
    * @return string
    */
-  abstract public function quote($string, $type = NULL);
+  abstract function quote($value, $type = NULL);
+  
+  /**
+   * 展开数组参数
+   * 
+   * @param string $str
+   * @param array $args
+   */
+  protected function expandArguments(&$str, array &$args) {
+    foreach (array_filter($args, 'is_array') as $key => $array) {
+      $new_keys = array();
+      foreach ($array as $i => $value) {
+        $new_keys[$key .'_'. $i] = $value;
+      }
+      $str = preg_replace('#' . $key . '\b#', implode(', ', array_keys($new_keys)), $str);
+      unset($args[$key]);
+      $args += $new_keys;
+    }
+  }
+  
+  protected function bind_argument_callback(array $match, $init = FALSE) {
+    static $args = array();
+    if ($init) {
+      $args = $match;
+      return;
+    }
+  
+    $match = $match[1];
+    if ($match == '?') {
+      $match = array_shift($args);
+    }
+    else {
+      $match = $args[$match];
+      unset($args[$match]);
+    }
+  
+    return $this->quote($match);
+  }
+  
+  /**
+   * 绑定参数
+   * 
+   * @param string $str
+   * @param array $args
+   */
+  protected function bindArguments(&$str, array $args) {
+    $this->bind_argument_callback($args, TRUE);
+    $str = preg_replace_callback(STORE_PARAM_REGEXP, array($this, 'bind_argument_callback'), $str);
+  }
 
   /**
    * 注册查询语句分析器
@@ -514,13 +602,9 @@ abstract class StoreConnection {
    */
   protected function analyzer(Query $query) {
     foreach ($this->_analyzers as $type => $analyzer) {
-      if ($query->type() & $type) {
-        $analyzer->setQuery($query);
-        break;
-      }
+      if ($query->type() & $type)
+        return $analyzer;
     }
-    
-    return $analyzer;
   }
   
   /**
@@ -808,7 +892,7 @@ class StoreQuerier {
    */
   protected function makeQuery() {
     if (isset($this->query)) {
-      $identifier = $this->name .'-'. $this->query->name();
+      $identifier = $this->name .'-'. $this->query;
       $identifier .= implode('-', $this->filters);
       $this->query->setIdentifier($identifier);
       
@@ -1311,4 +1395,49 @@ abstract class StoreStatementDatabase implements StoreStatementInterface {
   
 }
 
+
+/**
+ * 切换存储系统
+ * 
+ * @param string $system
+ */
+function store_switchsystem($system = 'realeff') {
+  return Store::switchSystem($system);
+}
+
+/**
+ * 复位存储系统
+ * 
+ * @param string $system
+ */
+function store_resetsystem($system = NULL) {
+  return Store::resetSystem($system);
+}
+
+/**
+ * 关闭目标设备链接
+ * 
+ * @param string $target
+ */
+function store_close($target = NULL) {
+  return Store::closeConnection($target);
+}
+
+/**
+ * 获取默认存储设备驱动名称
+ */
+function store_driver() {
+  return Store::getConnection()->driver();
+}
+
+/**
+ * 获取存储查询器
+ * 
+ * @param string $name
+ * 
+ * @return StoreQuerier
+ */
+function store_getquerier($name) {
+  return Store::getQuerier($name);
+}
 
