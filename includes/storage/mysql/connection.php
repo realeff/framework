@@ -226,24 +226,15 @@ class StoreConnection_mysql extends StoreConnection  {
     // TODO Auto-generated method stub
     return mysql_affected_rows($this->resource);
   }
-
-  private function _bind_argument_callback($match, $init = FALSE) {
-    static $args = array();
-    if ($init) {
-      $args = $match;
-      return;
-    }
-    
-    $match = $match[1];
-    if ($match == '?') {
-      $match = array_shift($args);
+  
+  private function _exec($sql) {
+    $result = mysql_query($sql, $this->resource);
+    if (!$this->errorCode()) {
+      return $result;
     }
     else {
-      $match = $args[$match];
-      unset($args[$match]);
+      return FALSE;
     }
-    
-    return $this->quote($match);
   }
   
   /**
@@ -265,26 +256,11 @@ class StoreConnection_mysql extends StoreConnection  {
     // 完成数据表前缀
     $sql = $this->prefixTables($sql);
     // 绑定参数数据
-    foreach (array_filter($args, 'is_array') as $key => $array) {
-      $new_keys = array();
-      foreach ($array as $i => $value) {
-        $new_keys[$key .'_'. $i] = $value;
-      }
-      $sql = preg_replace('#' . $key . '\b#', implode(', ', array_keys($new_keys)), $sql);
-      unset($args[$key]);
-      $args += $new_keys;
-    }
+    $this->expandArguments($sql, $args);
+    // 绑定参数
+    $this->bindArguments($sql, $args);
     
-    $this->_bind_argument_callback($args, TRUE);
-    $sql = preg_replace_callback(STORE_PARAM_REGEXP, array($this, '_bind_argument_callback'), $sql);
-    
-    $result = mysql_query($sql, $this->resource);
-    if (!$this->errorCode()) {
-      return $result;
-    }
-    else {
-      return FALSE;
-    }
+    return $this->_exec($sql);
   }
 
   /**
@@ -293,7 +269,26 @@ class StoreConnection_mysql extends StoreConnection  {
    */
   public function temporary($temporaryTable, SelectQuery $query) {
     // TODO Auto-generated method stub
-    //preg_replace('/^SELECT/i', 'CREATE TEMPORARY TABLE {' . $tablename . '} Engine=MEMORY SELECT', $query
+    $analyzer = $this->analyzer($query);
+    // 检查分析器是否SQLAnalyzer
+    if (!($analyzer instanceof SQLAnalyzer)) {
+      return FALSE;
+    }
+    
+    $analyzer->setQuery($query);
+    $sql = (string)$analyzer;
+    $args = $analyzer->arguments();
+    $analyzer->clean();
+    
+    $sql = 'CREATE TEMPORARY TABLE {' . $temporaryTable . '} Engine=MEMORY SELECT'. $sql;
+    // 完成数据表前缀
+    $sql = $this->prefixTables($sql);
+    // 绑定参数数据
+    $this->expandArguments($sql, $args);
+    // 绑定参数
+    $this->bindArguments($sql, $args);
+    
+    return (bool)$this->_exec($sql);
   }
 
 }
