@@ -40,10 +40,10 @@
 class StoreConnection_mysql extends StoreConnection  {
   
   
-  private $dsn;
-  private $username;
-  private $password;
-  private $dbname;
+  protected $dsn;
+  protected $username;
+  protected $password;
+  protected $dbname;
   
   /**
    * 构造一个MYSQL链接
