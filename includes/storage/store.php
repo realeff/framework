@@ -341,6 +341,12 @@ abstract class StoreConnection {
   protected $options = array();
   
   /**
+   * 查询语句分析器
+   * @var array
+   */
+  private $_analyzers = array();
+  
+  /**
    * 数据表前缀
    * 
    * @var array
@@ -348,10 +354,11 @@ abstract class StoreConnection {
   protected $prefixes = array();
   
   /**
-   * 查询语句分析器
+   * 替换数据表前缀
    * @var array
    */
-  private $_analyzers = array();
+  private $_prefixSearch = array();
+  private $_prefixReplace = array();
   
   /**
    * 构造与存储设备的链接
@@ -362,7 +369,8 @@ abstract class StoreConnection {
     $this->options = $options;
     
     // 设置数据表前缀
-    //$this->setPrefix($prefix);
+    $this->options['prefix'] = isset($options['prefix']) ? $options['prefix'] : '';
+    $this->setPrefix(isset($options['prefix_exts']) ? $options['prefix_exts'] : array());
   }
   
   /**
@@ -477,7 +485,20 @@ abstract class StoreConnection {
    * @param array $prefix
    */
   protected function setPrefix(array $prefix) {
+    $this->prefixes = $prefix;
     
+    
+    $this->_prefixSearch = array();
+    $this->_prefixReplace = array();
+    foreach ($this->prefixes as $table => $prefix) {
+      $this->_prefixSearch[] = '{' . $table . '}';
+      $this->_prefixReplace[] = $prefix . $table;
+    }
+    // 使用默认前缀
+    $this->_prefixSearch[] = '{';
+    $this->_prefixReplace[] = $this->options['prefix'];
+    $this->_prefixSearch[] = '}';
+    $this->_prefixReplace[] = '';
   }
   
   /**
@@ -488,7 +509,23 @@ abstract class StoreConnection {
    * @return string 数据表全名
    */
   public function prefixTables($str) {
-    return str_replace(array('{', '}'), array('', ''), $str);
+    return str_replace($this->_prefixSearch, $this->_prefixReplace, $str);
+  }
+  
+  /**
+   * 返回完整数据表名称
+   * 
+   * @param string $table
+   * 
+   * @return string 
+   */
+  public function tablePrefix($table) {
+    if (isset($this->prefixes[$table])) {
+      return $this->prefixes[$table] .$table;
+    }
+    else {
+      return $this->options['prefix'] .$table;
+    }
   }
   
   /**
@@ -892,8 +929,8 @@ class StoreQuerier {
    */
   protected function makeQuery() {
     if (isset($this->query)) {
-      $identifier = $this->name .'-'. $this->query;
-      $identifier .= implode('-', $this->filters);
+      $identifier = $this->connection->driver() .':'. $this->name;
+      $identifier .= ' -'. $this->query. implode('-', $this->filters);
       $this->query->setIdentifier($identifier);
       
       return TRUE;
@@ -1270,6 +1307,10 @@ interface StoreStatementInterface {
   public function fetchObject();
 
   public function freeResult();
+  
+  //public function errorCode();
+  
+  //public function errorInfo();
 }
 
 class StoreStatementEmpty implements StoreStatementInterface {
