@@ -4,12 +4,11 @@
 $databases['realeff'] = array(
   'default' => array(
       'driver' => 'mysql',
-      'dbname' => '',
-      'host' => '',
-      'port' => '',
-      'username' => '',
-      'password' => '',
-      'prefix' => 'main_',
+      'dbname' => 'micfm_db',
+      'host' => '127.0.0.1',
+      'username' => 'root',
+      'password' => '123',
+      'prefix' => 'mic_',
       'prefix_exts' => array(
           'session' => 'shared_',
           'authmap' => 'shared_'
@@ -19,22 +18,20 @@ $databases['realeff'] = array(
   'slave' => array(
     array(
       'driver' => 'mysql',
-      'dbname' => '',
-      'host' => '',
-      'port' => '',
-      'username' => '',
-      'password' => '',
-      'prefix' => 'main_',
+      'dbname' => 'micfm_rd',
+      'host' => '127.0.0.1',
+      'username' => 'root',
+      'password' => '123',
+      'prefix' => 'mic_',
       'collation' => 'utf8_general_ci',
       ),
     array(
-      'driver' => '',
-      'dbname' => '',
-      'host' => '',
-      'port' => '',
-      'username' => '',
-      'password' => '',
-      'prefix' => 'main_',
+      'driver' => 'mysql',
+      'dbname' => 'micfm_rd1',
+      'host' => '127.0.0.1',
+      'username' => 'root',
+      'password' => '123',
+      'prefix' => 'mic_',
       'collation' => 'utf8_general_ci',
       )
   )
@@ -44,7 +41,8 @@ $databases['othersys'] = array();
 // 数据查询器
 $dataquerier['realeff'] = array(
   'cache' => 'slave',
-  'site' => 'slave'
+  'site' => 'slave',
+  'test' => 'slave',
 );
 
 // 第三方应用提供的API类库目录
