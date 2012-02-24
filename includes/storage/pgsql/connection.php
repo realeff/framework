@@ -64,3 +64,275 @@
  * pg_update — 更新表
  * pg_version — Returns an array with client, protocol and server version (when available)
  */
+
+class StoreConnection_pgsql extends StoreConnection  {
+  
+  protected $dsn;
+  
+  private $_result;
+  
+  /**
+   * 构造一个MYSQL链接
+   * @param array $options
+   */
+  public function __construct(array $options) {
+    parent::__construct($options);
+    
+    // Default to TCP connection on port 5432.
+    if (empty($options['port'])) {
+      $options['port'] = 5432;
+    }
+    
+    // PostgreSQL in trust mode doesn't require a password to be supplied.
+    if (empty($options['password'])) {
+      $options['password'] = NULL;
+    }
+    // If the password contains a backslash it is treated as an escape character
+    // http://bugs.php.net/bug.php?id=53217
+    // so backslashes in the password need to be doubled up.
+    // The bug was reported against pdo_pgsql 1.0.2, backslashes in passwords
+    // will break on this doubling up when the bug is fixed, so check the version
+    //elseif (phpversion('pdo_pgsql') < 'version_this_was_fixed_in') {
+    else {
+      $options['password'] = str_replace('\\', '\\\\', $options['password']);
+    }
+    
+    // The DSN should use either a socket or a host/port.
+    if (isset($options['unix_socket'])) {
+      //$dsn = 'mysql:unix_socket=' . $conn_options['unix_socket'];
+      $dsn = $options['unix_socket'];
+    }
+    else {
+      // Decode url-encoded information in the db connection string
+      $dsn = ' host='. urldecode($options['host']);
+      if (isset($options['port'])) {
+        $dsn .= ' port='. urldecode($options['port']);
+      }
+      if (isset($options['username'])) {
+        $dsn .= ' user='. urldecode($options['username']);
+      }
+      if (isset($options['password'])) {
+        $dsn .= ' password='. urldecode($options['password']);
+      }
+      if (isset($options['dbname'])) {
+        $dsn .= ' dbname='. urldecode($options['dbname']);
+      }
+    }
+    $this->dsn = $dsn;
+    
+    // 注册查询语句分析器
+    $this->registerAnalyzer(new SQLSelectAnalyzer());
+    $this->registerAnalyzer(new SQLInsertAnalyzer_pgsql());
+    $this->registerAnalyzer(new SQLUpdateAnalyzer());
+    $this->registerAnalyzer(new SQLDeleteAnalyzer());
+  }
+  
+  /**
+   * (non-PHPdoc)
+   * @see RelationDatabase::driver()
+   */
+  public function driver() {
+    // TODO Auto-generated method stub
+    return 'pgsql';
+  }
+  
+  /* (non-PHPdoc)
+ * @see RelationDatabase::version()
+ */
+  public function version() {
+    // TODO Auto-generated method stub
+    //return db_result(db_query("SHOW SERVER_VERSION"));;
+  }
+
+  /**
+   * (non-PHPdoc)
+   * @see StoreConnection::open()
+   */
+  public function open() {
+    // TODO Auto-generated method stub
+    
+    // pg_last_error() does not return a useful error message for database
+    // connection errors. We must turn on error tracking to get at a good error
+    // message, which will be stored in $php_errormsg.
+    $track_errors_previous = ini_get('track_errors');
+    ini_set('track_errors', 1);
+    
+    $this->resource = @pg_connect($this->dsn);
+    if (!$this->resource) {
+      return FALSE;
+    }
+    
+    // Restore error tracking setting
+    ini_set('track_errors', $track_errors_previous);
+    
+    pg_query($this->resource, "set client_encoding=\"UTF8\"");
+    
+    return TRUE;
+  }
+  
+  /**
+   * (non-PHPdoc)
+   * @see StoreConnection::close()
+   */
+  public function close() {
+    // TODO Auto-generated method stub
+    return pg_close($this->resource);
+  }
+
+  /**
+   * (non-PHPdoc)
+   * @see StoreConnection::ping()
+   */
+  public function ping() {
+    // TODO Auto-generated method stub
+    return pg_ping($this->resource);
+  }
+  
+  /**
+   * (non-PHPdoc)
+   * @see StoreConnection::errorCode()
+   */
+  public function errorCode() {
+    // TODO Auto-generated method stub
+    return (bool)$this->errorInfo();
+  }
+  
+  /**
+   * (non-PHPdoc)
+   * @see StoreConnection::errorInfo()
+   */
+  public function errorInfo() {
+    // TODO Auto-generated method stub
+    return empty($this->_result) ? pg_last_error($this->resource) : pg_result_error($this->_result);
+  }
+
+  /**
+   * (non-PHPdoc)
+   * @see StoreConnection::quote()
+   */
+  public function quote($value, $type = NULL) {
+    // TODO Auto-generated method stub
+    if (!isset($type)) {
+      $type = $this->dataType($value);
+    }
+    
+    switch ($type) {
+      case self::PARAM_NULL:
+        return "''";
+      case self::PARAM_NUMERIC:
+        return !preg_match('/x/i', $value) ? $value : '0';
+      case self::PARAM_LOB:
+        if (!is_string($value)) {
+          $value = serialize($value);
+        }
+        return "'". pg_escape_bytea($this->resource, $value) ."'";
+      case self::PARAM_STR:
+        return "'". pg_escape_string($this->resource, $value) ."'";
+    }
+    
+    return $value;
+  }
+
+
+  /**
+   * (non-PHPdoc)
+   * @see StoreConnection::schema()
+   */
+  public function schema() {
+    // TODO Auto-generated method stub
+    
+  }
+
+  /**
+   * (non-PHPdoc)
+   * @see StoreConnection::lastInsertId()
+   */
+  public function lastInsertId() {
+    // TODO Auto-generated method stub
+    //return mysql_insert_id($this->resource);
+  }
+
+  /**
+   * (non-PHPdoc)
+   * @see StoreConnection::prepare()
+   */
+  public function prepare(Query $query) {
+    // TODO Auto-generated method stub
+    //return new StoreStatementDatabase_mysql($this, $query);
+  }
+
+  /**
+   * (non-PHPdoc)
+   * @see StoreConnection::affectedRows()
+   */
+  public function affectedRows() {
+    // TODO Auto-generated method stub
+    return empty($this->_result) ? 0 : pg_affected_rows($this->_result);
+  }
+  
+  private function _exec($sql) {
+    $this->_result = pg_query($this->resource, $sql);
+    if ($this->_result !== FALSE) {
+      return $this->_result;
+    }
+    else {
+      return FALSE;
+    }
+  }
+  
+  /**
+   * (non-PHPdoc)
+   * @see StoreConnection::execute()
+   */
+  public function execute(Query $query) {
+    // TODO Auto-generated method stub
+    $analyzer = $this->analyzer($query);
+    // 检查分析器是否SQLAnalyzer
+    if (!($analyzer instanceof SQLAnalyzer)) {
+      return FALSE;
+    }
+    
+    $analyzer->setQuery($query);
+    $sql = (string)$analyzer;
+    $args = $analyzer->arguments();
+    $analyzer->clean();
+    // 完成数据表前缀
+    $sql = $this->prefixTables($sql);
+    // 绑定参数数据
+    $this->expandArguments($sql, $args);
+    // 绑定参数
+    $this->bindArguments($sql, $args);
+    
+    return $this->_exec($sql);
+  }
+
+  /**
+   * (non-PHPdoc)
+   * @see StoreConnection::temporary()
+   */
+  public function temporary($temporaryTable, SelectQuery $query) {
+    // TODO Auto-generated method stub
+    $analyzer = $this->analyzer($query);
+    // 检查分析器是否SQLAnalyzer
+    if (!($analyzer instanceof SQLAnalyzer)) {
+      return FALSE;
+    }
+    
+    $analyzer->setQuery($query);
+    $sql = (string)$analyzer;
+    $args = $analyzer->arguments();
+    $analyzer->clean();
+    
+    $sql = 'CREATE TEMPORARY TABLE {' . $temporaryTable . '} AS '. $sql;
+    // 完成数据表前缀
+    $sql = $this->prefixTables($sql);
+    // 绑定参数数据
+    $this->expandArguments($sql, $args);
+    // 绑定参数
+    $this->bindArguments($sql, $args);
+    
+    return (bool)$this->_exec($sql);
+  }
+
+}
+
