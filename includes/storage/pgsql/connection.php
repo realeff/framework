@@ -72,7 +72,7 @@ class StoreConnection_pgsql extends StoreConnection  {
   private $_result;
   
   /**
-   * 构造一个MYSQL链接
+   * 构造一个PGSQL链接
    * @param array $options
    */
   public function __construct(array $options) {
