@@ -498,11 +498,12 @@ abstract class StoreDatabase {
     $this->_prefixReplace = array();
     foreach ($this->prefixes as $table => $prefix) {
       $this->_prefixSearch[] = '{' . $table . '}';
-      $this->_prefixReplace[] = $prefix . $table;
+      $this->_prefixReplace[] = $this->escape($prefix) . $table;
     }
     // 使用默认前缀
+    $prefix = $this->options['prefix'];
     $this->_prefixSearch[] = '{';
-    $this->_prefixReplace[] = $this->options['prefix'];
+    $this->_prefixReplace[] = $this->escape($prefix);
     $this->_prefixSearch[] = '}';
     $this->_prefixReplace[] = '';
   }
@@ -532,6 +533,15 @@ abstract class StoreDatabase {
     else {
       return $this->options['prefix'] .$table;
     }
+  }
+  
+  /**
+   * 避开名称漏洞
+   * 
+   * @param string $name
+   */
+  public function escape($name) {
+    return preg_replace('/[^A-Za-z0-9_.]+/', '', $name);
   }
   
   /**
