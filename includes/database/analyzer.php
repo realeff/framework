@@ -139,7 +139,8 @@ abstract class SQLAnalyzer {
   public function arguments() {
     $arguments = array();
     if (isset($this->query)) {
-      foreach ($this->query->parameter() as $field => $value) {
+      $params = $this->query->parameter();
+      foreach ($params as $field => $value) {
         $arguments[':'. $field] = $value;
       }
     }
