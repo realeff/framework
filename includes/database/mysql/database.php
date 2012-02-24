@@ -58,7 +58,7 @@ class StoreDatabase_mysql extends StoreDatabase  {
       $dsn = $options['unix_socket'];
     }
     else {
-      // Default to TCP databaes on port 3306.
+      // Default to TCP database on port 3306.
       //$dsn = 'mysql:host=' . $conn_options['host'] . ';port=' . (empty($conn_options['port']) ? 3306 : $conn_options['port']);
       $dsn = $options['host'];
       if (isset($options['port'])) {
