@@ -280,7 +280,7 @@ class StoreConnection_mysql extends StoreConnection  {
     $args = $analyzer->arguments();
     $analyzer->clean();
     
-    $sql = 'CREATE TEMPORARY TABLE {' . $temporaryTable . '} Engine=MEMORY SELECT'. $sql;
+    $sql = 'CREATE TEMPORARY TABLE {' . $temporaryTable . '} Engine=MEMORY '. $sql;
     // 完成数据表前缀
     $sql = $this->prefixTables($sql);
     // 绑定参数数据
