@@ -65,7 +65,7 @@
  * pg_version — Returns an array with client, protocol and server version (when available)
  */
 
-class StoreConnection_pgsql extends StoreConnection  {
+class StoreDatabase_pgsql extends StoreDatabase  {
   
   protected $dsn;
   
@@ -78,7 +78,7 @@ class StoreConnection_pgsql extends StoreConnection  {
   public function __construct(array $options) {
     parent::__construct($options);
     
-    // Default to TCP connection on port 5432.
+    // Default to TCP database on port 5432.
     if (empty($options['port'])) {
       $options['port'] = 5432;
     }
@@ -103,7 +103,7 @@ class StoreConnection_pgsql extends StoreConnection  {
       $dsn = $options['unix_socket'];
     }
     else {
-      // Decode url-encoded information in the db connection string
+      // Decode url-encoded information in the db database string
       $dsn = ' host='. urldecode($options['host']);
       if (isset($options['port'])) {
         $dsn .= ' port='. urldecode($options['port']);
@@ -146,13 +146,13 @@ class StoreConnection_pgsql extends StoreConnection  {
 
   /**
    * (non-PHPdoc)
-   * @see StoreConnection::open()
+   * @see StoreDatabase::open()
    */
   public function open() {
     // TODO Auto-generated method stub
     
     // pg_last_error() does not return a useful error message for database
-    // connection errors. We must turn on error tracking to get at a good error
+    // database errors. We must turn on error tracking to get at a good error
     // message, which will be stored in $php_errormsg.
     $track_errors_previous = ini_get('track_errors');
     ini_set('track_errors', 1);
@@ -172,7 +172,7 @@ class StoreConnection_pgsql extends StoreConnection  {
   
   /**
    * (non-PHPdoc)
-   * @see StoreConnection::close()
+   * @see StoreDatabase::close()
    */
   public function close() {
     // TODO Auto-generated method stub
@@ -181,7 +181,7 @@ class StoreConnection_pgsql extends StoreConnection  {
 
   /**
    * (non-PHPdoc)
-   * @see StoreConnection::ping()
+   * @see StoreDatabase::ping()
    */
   public function ping() {
     // TODO Auto-generated method stub
@@ -190,7 +190,7 @@ class StoreConnection_pgsql extends StoreConnection  {
   
   /**
    * (non-PHPdoc)
-   * @see StoreConnection::errorCode()
+   * @see StoreDatabase::errorCode()
    */
   public function errorCode() {
     // TODO Auto-generated method stub
@@ -199,7 +199,7 @@ class StoreConnection_pgsql extends StoreConnection  {
   
   /**
    * (non-PHPdoc)
-   * @see StoreConnection::errorInfo()
+   * @see StoreDatabase::errorInfo()
    */
   public function errorInfo() {
     // TODO Auto-generated method stub
@@ -208,7 +208,7 @@ class StoreConnection_pgsql extends StoreConnection  {
 
   /**
    * (non-PHPdoc)
-   * @see StoreConnection::quote()
+   * @see StoreDatabase::quote()
    */
   public function quote($value, $type = NULL) {
     // TODO Auto-generated method stub
@@ -236,7 +236,7 @@ class StoreConnection_pgsql extends StoreConnection  {
 
   /**
    * (non-PHPdoc)
-   * @see StoreConnection::schema()
+   * @see StoreDatabase::schema()
    */
   public function schema() {
     // TODO Auto-generated method stub
@@ -245,7 +245,7 @@ class StoreConnection_pgsql extends StoreConnection  {
 
   /**
    * (non-PHPdoc)
-   * @see StoreConnection::lastInsertId()
+   * @see StoreDatabase::lastInsertId()
    */
   public function lastInsertId() {
     // TODO Auto-generated method stub
@@ -254,7 +254,7 @@ class StoreConnection_pgsql extends StoreConnection  {
 
   /**
    * (non-PHPdoc)
-   * @see StoreConnection::prepare()
+   * @see StoreDatabase::prepare()
    */
   public function prepare(Query $query) {
     // TODO Auto-generated method stub
@@ -263,7 +263,7 @@ class StoreConnection_pgsql extends StoreConnection  {
 
   /**
    * (non-PHPdoc)
-   * @see StoreConnection::affectedRows()
+   * @see StoreDatabase::affectedRows()
    */
   public function affectedRows() {
     // TODO Auto-generated method stub
@@ -282,7 +282,7 @@ class StoreConnection_pgsql extends StoreConnection  {
   
   /**
    * (non-PHPdoc)
-   * @see StoreConnection::execute()
+   * @see StoreDatabase::execute()
    */
   public function execute(Query $query) {
     // TODO Auto-generated method stub
@@ -308,7 +308,7 @@ class StoreConnection_pgsql extends StoreConnection  {
 
   /**
    * (non-PHPdoc)
-   * @see StoreConnection::temporary()
+   * @see StoreDatabase::temporary()
    */
   public function temporary($temporaryTable, SelectQuery $query) {
     // TODO Auto-generated method stub

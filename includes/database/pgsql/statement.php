@@ -1,6 +1,6 @@
 <?php
 
-class StoreStatementDatabase_pgsql extends StoreStatementDatabase {
+class StoreStatementDatabase_pgsql extends StoreStatementBase {
 
   private $_index = 0;
   
@@ -11,7 +11,7 @@ class StoreStatementDatabase_pgsql extends StoreStatementDatabase {
   }
   
 	/* (non-PHPdoc)
- * @see StoreStatementDatabase::fetchArray()
+ * @see StoreStatementBase::fetchArray()
  */
   public function fetchArray() {
     // TODO Auto-generated method stub
@@ -21,7 +21,7 @@ class StoreStatementDatabase_pgsql extends StoreStatementDatabase {
   }
 
 	/* (non-PHPdoc)
- * @see StoreStatementDatabase::fetchObject()
+ * @see StoreStatementBase::fetchObject()
  */
   public function fetchObject() {
     // TODO Auto-generated method stub
@@ -31,7 +31,7 @@ class StoreStatementDatabase_pgsql extends StoreStatementDatabase {
   }
 
 	/* (non-PHPdoc)
- * @see StoreStatementDatabase::rowCount()
+ * @see StoreStatementBase::rowCount()
  */
   public function rowCount() {
     // TODO Auto-generated method stub
@@ -42,7 +42,7 @@ class StoreStatementDatabase_pgsql extends StoreStatementDatabase {
     return 0;
   }
 /* (non-PHPdoc)
- * @see StoreStatementDatabase::fetchAssoc()
+ * @see StoreStatementBase::fetchAssoc()
  */
   public function fetchAssoc() {
     // TODO Auto-generated method stub
@@ -52,7 +52,7 @@ class StoreStatementDatabase_pgsql extends StoreStatementDatabase {
   }
 
 /* (non-PHPdoc)
- * @see StoreStatementDatabase::fetchField()
+ * @see StoreStatementBase::fetchField()
  */
   public function fetchField($index = 0) {
     // TODO Auto-generated method stub
@@ -63,7 +63,7 @@ class StoreStatementDatabase_pgsql extends StoreStatementDatabase {
     }
   }
 /* (non-PHPdoc)
- * @see StoreStatementDatabase::fetch()
+ * @see StoreStatementBase::fetch()
  */
   public function fetch() {
     // TODO Auto-generated method stub
@@ -71,7 +71,7 @@ class StoreStatementDatabase_pgsql extends StoreStatementDatabase {
   }
 
 /* (non-PHPdoc)
- * @see StoreStatementDatabase::fetchAll()
+ * @see StoreStatementBase::fetchAll()
  */
   public function fetchAll() {
     // TODO Auto-generated method stub
@@ -81,7 +81,7 @@ class StoreStatementDatabase_pgsql extends StoreStatementDatabase {
   }
 
 /* (non-PHPdoc)
- * @see StoreStatementDatabase::freeResult()
+ * @see StoreStatementBase::freeResult()
  */
   public function freeResult() {
     // TODO Auto-generated method stub

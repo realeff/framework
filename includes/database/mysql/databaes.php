@@ -37,7 +37,7 @@
  * mysql_unbuffered_query — 向 MySQL 发送一条 SQL 查询，并不获取和缓存结果的行
  */
 
-class StoreConnection_mysql extends StoreConnection  {
+class StoreDatabase_mysql extends StoreDatabase  {
   
   
   protected $dsn;
@@ -58,7 +58,7 @@ class StoreConnection_mysql extends StoreConnection  {
       $dsn = $options['unix_socket'];
     }
     else {
-      // Default to TCP connection on port 3306.
+      // Default to TCP databaes on port 3306.
       //$dsn = 'mysql:host=' . $conn_options['host'] . ';port=' . (empty($conn_options['port']) ? 3306 : $conn_options['port']);
       $dsn = $options['host'];
       if (isset($options['port'])) {
@@ -98,7 +98,7 @@ class StoreConnection_mysql extends StoreConnection  {
 
   /**
    * (non-PHPdoc)
-   * @see StoreConnection::open()
+   * @see StoreDatabase::open()
    */
   public function open() {
     // TODO Auto-generated method stub
@@ -122,7 +122,7 @@ class StoreConnection_mysql extends StoreConnection  {
   
   /**
    * (non-PHPdoc)
-   * @see StoreConnection::close()
+   * @see StoreDatabase::close()
    */
   public function close() {
     // TODO Auto-generated method stub
@@ -131,7 +131,7 @@ class StoreConnection_mysql extends StoreConnection  {
 
   /**
    * (non-PHPdoc)
-   * @see StoreConnection::ping()
+   * @see StoreDatabase::ping()
    */
   public function ping() {
     // TODO Auto-generated method stub
@@ -140,7 +140,7 @@ class StoreConnection_mysql extends StoreConnection  {
   
   /**
    * (non-PHPdoc)
-   * @see StoreConnection::errorCode()
+   * @see StoreDatabase::errorCode()
    */
   public function errorCode() {
     // TODO Auto-generated method stub
@@ -149,7 +149,7 @@ class StoreConnection_mysql extends StoreConnection  {
   
   /**
    * (non-PHPdoc)
-   * @see StoreConnection::errorInfo()
+   * @see StoreDatabase::errorInfo()
    */
   public function errorInfo() {
     // TODO Auto-generated method stub
@@ -158,7 +158,7 @@ class StoreConnection_mysql extends StoreConnection  {
 
   /**
    * (non-PHPdoc)
-   * @see StoreConnection::quote()
+   * @see StoreDatabase::quote()
    */
   public function quote($value, $type = NULL) {
     // TODO Auto-generated method stub
@@ -193,7 +193,7 @@ class StoreConnection_mysql extends StoreConnection  {
 
   /**
    * (non-PHPdoc)
-   * @see StoreConnection::schema()
+   * @see StoreDatabase::schema()
    */
   public function schema() {
     // TODO Auto-generated method stub
@@ -202,7 +202,7 @@ class StoreConnection_mysql extends StoreConnection  {
 
   /**
    * (non-PHPdoc)
-   * @see StoreConnection::lastInsertId()
+   * @see StoreDatabase::lastInsertId()
    */
   public function lastInsertId() {
     // TODO Auto-generated method stub
@@ -211,7 +211,7 @@ class StoreConnection_mysql extends StoreConnection  {
 
   /**
    * (non-PHPdoc)
-   * @see StoreConnection::prepare()
+   * @see StoreDatabase::prepare()
    */
   public function prepare(Query $query) {
     // TODO Auto-generated method stub
@@ -220,7 +220,7 @@ class StoreConnection_mysql extends StoreConnection  {
 
   /**
    * (non-PHPdoc)
-   * @see StoreConnection::affectedRows()
+   * @see StoreDatabase::affectedRows()
    */
   public function affectedRows() {
     // TODO Auto-generated method stub
@@ -239,7 +239,7 @@ class StoreConnection_mysql extends StoreConnection  {
   
   /**
    * (non-PHPdoc)
-   * @see StoreConnection::execute()
+   * @see StoreDatabase::execute()
    */
   public function execute(Query $query) {
     // TODO Auto-generated method stub
@@ -265,7 +265,7 @@ class StoreConnection_mysql extends StoreConnection  {
 
   /**
    * (non-PHPdoc)
-   * @see StoreConnection::temporary()
+   * @see StoreDatabase::temporary()
    */
   public function temporary($temporaryTable, SelectQuery $query) {
     // TODO Auto-generated method stub

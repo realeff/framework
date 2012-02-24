@@ -11,6 +11,12 @@ include_once STORE_DRIVER_PATH .'/analyzer.php';
 
 define('STORE_PARAM_REGEXP', '/(:\w+|\?)/');
 
+/**
+ * 
+ * 
+ * @author realeff
+ *
+ */
 abstract class Store {
   
   /**
@@ -152,7 +158,7 @@ abstract class Store {
     
     // 驱动文件包括
     static $files = array(
-        'connection.php',
+        'database.php',
         'schema.php',
         'statement.php',
         'analyzer.php'
@@ -175,7 +181,7 @@ abstract class Store {
    * @param string $target 链接标识
    * @param array $options 链接选项
    * 
-   * @return StoreConnection
+   * @return StoreDatabase
    */
   protected static function connection($target, array $options) {
     
@@ -187,7 +193,7 @@ abstract class Store {
     self::loadDriver($options['driver']);
     
     // 实例化存储链接
-    $class = 'StoreConnection_'. $options['driver'];
+    $class = 'StoreDatabase_'. $options['driver'];
     $connection = new $class($options);
     $connection->open();
     
@@ -201,7 +207,7 @@ abstract class Store {
    * 
    * @param string $target 链接目标
    * 
-   * @return StoreConnection
+   * @return StoreDatabase
    */
   final public static function getConnection($target = 'default') {
     $system = self::$activeSystem;
@@ -315,7 +321,7 @@ abstract class Store {
  *
  * @author feng
  */
-abstract class StoreConnection {
+abstract class StoreDatabase {
   
   const PARAM_NULL = 0;
   const PARAM_INT = 1;
@@ -327,7 +333,7 @@ abstract class StoreConnection {
   const PARAM_NUMERIC = 8;
   
   /**
-   * 这是存储设备资源
+   * 这是存储设备链接资源
    * 
    * @var resource
    */
@@ -737,7 +743,7 @@ class StoreQuerier {
   /**
    * 存储设备链接
    * 
-   * @var StoreConnection
+   * @var StoreDatabase
    */
   protected $connection;
   
@@ -751,9 +757,9 @@ class StoreQuerier {
   /**
    * 构造一个数据存储命令
    * 
-   * @param StoreConnection $connection
+   * @param StoreDatabase $connection
    */
-  public function __construct(StoreConnection $connection, $name) {
+  public function __construct(StoreDatabase $connection, $name) {
     $this->name = $name;
     $this->filters = array();
     
@@ -769,7 +775,7 @@ class StoreQuerier {
   /**
    * 获取存储设备链接
    * 
-   * @return StoreConnection
+   * @return StoreDatabase
    */
   final public function getConnection() {
     return $this->connection;
@@ -1080,7 +1086,7 @@ abstract class StoreSchema {
   /**
    * 存储器链接
    * 
-   * @var StoreConnection
+   * @var StoreDatabase
    */
   protected $connection;
   
@@ -1129,9 +1135,9 @@ abstract class StoreSchema {
   /**
    * 构造一个数据存储结构操作
    * 
-   * @param StoreConnection $connection
+   * @param StoreDatabase $connection
    */
-  public function __construct(StoreConnection $connection) {
+  public function __construct(StoreDatabase $connection) {
     $this->connection = $connection;
   }
   
@@ -1380,12 +1386,12 @@ class StoreStatementEmpty implements StoreStatementInterface {
 
 }
 
-abstract class StoreStatementDatabase implements StoreStatementInterface {
+abstract class StoreStatementBase implements StoreStatementInterface {
   
   /**
    * 数据存储链接
    * 
-   * @var StoreConnection
+   * @var StoreDatabase
    */
   protected $conn;
   
@@ -1404,16 +1410,16 @@ abstract class StoreStatementDatabase implements StoreStatementInterface {
   
   /**
    * 
-   * @param StoreConnection $conn
+   * @param StoreDatabase $conn
    * @param Query $query
    */
-  public function __construct(StoreConnection $conn, Query $query) {
+  public function __construct(StoreDatabase $conn, Query $query) {
     $this->conn = $conn;
     $this->query = $query;
   }
   
 	/* (non-PHPdoc)
- * @see StoreStatementDatabase::execute()
+ * @see StoreStatementBase::execute()
  */
   public function execute($args = array()) {
     // TODO Auto-generated method stub
