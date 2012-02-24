@@ -1,6 +1,6 @@
 <?php
 
-class StoreStatementDatabase_mysql extends StoreStatementDatabase {
+class StoreStatementDatabase_pgsql extends StoreStatementDatabase {
 
   private $_index = 0;
   

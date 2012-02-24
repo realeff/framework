@@ -258,7 +258,7 @@ class StoreConnection_pgsql extends StoreConnection  {
    */
   public function prepare(Query $query) {
     // TODO Auto-generated method stub
-    //return new StoreStatementDatabase_mysql($this, $query);
+    return new StoreStatementDatabase_pgsql($this, $query);
   }
 
   /**
