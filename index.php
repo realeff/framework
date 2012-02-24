@@ -4,10 +4,10 @@
  * 这是一个定义程序执行入口的文件，获取系统服务和请求链接的地方。
  */
 
-define('RESYS_DEBUG', TRUE);
-define('RESYS_ROOT', dirname(__FILE__));
+define('SYS_DEBUG', TRUE);
+define('SYS_ROOT', dirname(__FILE__));
 // 装载引导程序
-include_once RESYS_ROOT .'/includes/bootstrap.php';
+include_once SYS_ROOT .'/includes/bootstrap.php';
 // 引导程序
 realeff_bootstrap();
 
