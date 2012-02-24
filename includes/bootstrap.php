@@ -14,18 +14,18 @@ define('VERSION', '1.0');
 /**
  * 最低PHP版本要求
  */
-define('RESYS_PHP_MINIMUM_VERSION', '5.2.4');
+define('SYS_PHP_MINIMUM_VERSION', '5.2.4');
 
 /**
  * 最低PHP内存使用要求
  */
-define('RESYS_PHP_MINIMUM_MEMORY', '32M');
+define('SYS_PHP_MINIMUM_MEMORY', '32M');
 
 /**
  * RealEff系统根目录。
  */
-if (!defined('RESYS_ROOT')) {
-  define('RESYS_ROOT', substr(dirname(__FILE__), 0, -9));
+if (!defined('SYS_ROOT')) {
+  define('SYS_ROOT', substr(dirname(__FILE__), 0, -9));
 }
 
 
@@ -154,7 +154,7 @@ function _realeff_init_env_vars() {
  */
 function _realeff_init_env() {
   // 默认设置PHP的错误报告级别，DEBUG模式下设置为E_ALL级别。
-  if (defined('RESYS_DEBUG')) {
+  if (defined('SYS_DEBUG')) {
     error_reporting(E_ALL);
     ini_set('display_errors', 'on');
   }
@@ -182,7 +182,7 @@ function _realeff_init_env() {
   //spl_autoload_register('_realeff_autoload_interface');
   
   // 检查PHP版本支持
-  //if (version_compare(phpversion(), RESYS_PHP_MINIMUM_VERSION) < 0) {
+  //if (version_compare(phpversion(), SYS_PHP_MINIMUM_VERSION) < 0) {
     // 输出警告信息
     //trigger_error('', E_CORE_WARNING);
   //}
@@ -196,7 +196,7 @@ function _realeff_init_env() {
   _realeff_init_env_vars();
   
   // 切换到系统工作根目录
-  //chdir(RESYS_ROOT);
+  //chdir(SYS_ROOT);
 }
 
 
@@ -242,8 +242,8 @@ global $databases, $dataquerier, $multisites, $auth_key, $cookie_domain, $librar
   $databases = $dataquerier = $multisites = $config = array();
   $library_dir = $extension_dir = $cookie_domain = $auth_key = '';
 
-  if (file_exists(RESYS_ROOT .'/config.php')) {
-    include_once RESYS_ROOT .'/config.php';
+  if (file_exists(SYS_ROOT .'/config.php')) {
+    include_once SYS_ROOT .'/config.php';
   }
   
   // 允许在config.php文件夹指定第三方应用提供的API类库的具体位置
@@ -251,7 +251,7 @@ global $databases, $dataquerier, $multisites, $auth_key, $cookie_domain, $librar
     $library_dir = realpath($library_dir);
   }
   else {
-    $library_dir = RESYS_ROOT .'/libraries';
+    $library_dir = SYS_ROOT .'/libraries';
   }
   
   // 允许在config.php文件中指定扩展目录的具体位置
@@ -259,7 +259,7 @@ global $databases, $dataquerier, $multisites, $auth_key, $cookie_domain, $librar
     $extension_dir = realpath($extension_dir);
   }
   else {
-    $extension_dir = RESYS_ROOT .'/extension';
+    $extension_dir = SYS_ROOT .'/extension';
   }
   
   // 自动加载第三方应用API库
@@ -267,7 +267,7 @@ global $databases, $dataquerier, $multisites, $auth_key, $cookie_domain, $librar
   
   // 设置站点序号及站点工作空间
   $_ENV['serial'] = 0;
-  $_ENV['workspace'] = RESYS_ROOT .'/workspace';
+  $_ENV['workspace'] = SYS_ROOT .'/workspace';
   if ($multisites) {
     $site = _realeff_site_config();
     // 站点序号（编码）
@@ -284,7 +284,7 @@ global $databases, $dataquerier, $multisites, $auth_key, $cookie_domain, $librar
     $_ENV['include_settings_php'] = TRUE;
   }
 
-  // 检查存储介质是否配置，如果没有配置，则引导安装程序。
+  // 检查数据库是否配置，如果没有配置，则引导安装程序。
   
   // 加载站点配置信息（config缓存）
   
@@ -425,7 +425,7 @@ function _realeff_exception_handler($exception) {
  * @return array
  */
 function _realeff_read_phpdata($name) {
-  $filename = RESYS_ROOT ."/cache/{$name}.php";
+  $filename = SYS_ROOT ."/cache/{$name}.php";
   
   $data = array();
   if (file_exists($filename)) {
@@ -446,7 +446,7 @@ function _realeff_read_phpdata($name) {
  * @param mixed $data 存储的数据
  */
 function _realeff_write_phpdata($name, $data) {
-  $filename = RESYS_ROOT ."/cache/{$name}.php";
+  $filename = SYS_ROOT ."/cache/{$name}.php";
   
   file_put_contents($filename, '<?php return ' . var_export($data, true) . ';', LOCK_EX);
 }
@@ -458,7 +458,7 @@ function _realeff_write_phpdata($name, $data) {
  *   清除php缓存数据成功返回TRUE，失败返回FALSE。
  */
 function _realeff_clear_phpdata() {
-  $filemask = RESYS_ROOT .'/cache/*.php';
+  $filemask = SYS_ROOT .'/cache/*.php';
   
   return array_map( "unlink", glob($filemask));
 }
