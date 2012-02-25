@@ -1399,6 +1399,13 @@ class SelectQuery extends Query {
   protected $forUpdate = FALSE;
   
   /**
+   * 按条件检索计数
+   * 
+   * @var boolean
+   */
+  protected $forCount = FALSE;
+  
+  /**
    * 构造一个筛选查询
    * 
    * @param string $table 数据表
@@ -1632,12 +1639,12 @@ class SelectQuery extends Query {
   /**
    * 设置获取新更新数据
    * 
-   * @param boolean $update
+   * @param boolean $flag
    * 
    * @return SelectQuery
    */
-  final public function forUpdate($update = TRUE) {
-    $this->forUpdate = $update;
+  final public function forUpdate($flag = TRUE) {
+    $this->forUpdate = $flag;
     
     return $this;
   }
@@ -1649,6 +1656,28 @@ class SelectQuery extends Query {
    */
   final public function getUpdate() {
     return $this->forUpdate;
+  }
+  
+  /**
+   * 设置查询计数
+   * 
+   * @param boolean $flag
+   * 
+   * @return SelectQuery
+   */
+  final public function forCount($flag = TRUE) {
+    $this->forCount = $flag;
+    
+    return $this;
+  }
+  
+  /**
+   * 获取查询计数标识
+   * 
+   * @return boolean
+   */
+  final public function getCountFlag() {
+    return $this->forCount;
   }
 }
 
