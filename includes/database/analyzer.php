@@ -547,7 +547,7 @@ class SQLSelectAnalyzer extends SQLAnalyzer implements QueryAnalyzerInterface {
       return NULL;
     }
     
-    $table = self::escapeName($this->query->getTable());
+    $table = $this->query->getTable();
     $table_alias = '';
     
     if ($this->query instanceof MultiSelectQueryInterface) {
@@ -558,22 +558,22 @@ class SQLSelectAnalyzer extends SQLAnalyzer implements QueryAnalyzerInterface {
     $arguments = $this->query->getArguments();
     foreach ($this->query->getFields() as $alias => $field) {
       if ($field == '*') {
-        $fields[] = $table_alias .$field;
+        $fields[$table_alias .$field] = $table_alias .$field;
         continue;
       }
       
       $field = self::escapeName($field);
       if (isset($arguments[$alias])) {
-        $fields[] = $field .' AS '. self::escapeName($alias);
+        $fields[$alias] = $field .' AS '. self::escapeName($alias);
       }
       else {
         $alias = self::escapeName($alias);
-        $fields[] = $table_alias .$field .($alias == $field ? '' : ' AS '. $alias);
+        $fields[$alias] = $table_alias .$field .($alias == $field ? '' : ' AS '. $alias);
       }
     }
     
     $tables = array();
-    $tables[] = '{'. $table .'}'. (empty($table_alias) ? '' : ' '. trim($table_alias, '.'));
+    $tables[] = '{'. self::escapeName($table) .'}'. (empty($table_alias) ? '' : ' '. trim($table_alias, '.'));
     
     $unions = array();
     if ($this->query instanceof MultiSelectQueryInterface) {
@@ -584,89 +584,117 @@ class SQLSelectAnalyzer extends SQLAnalyzer implements QueryAnalyzerInterface {
         $table_alias = self::escapeName($join['alias']);
         foreach ($join['fields'] as $alias => $field) {
           if ($field == '*') {
-            $fields[] = $table_alias .'.'. $field;
+            $fields[$table_alias .'.'. $field] = $table_alias .'.'. $field;
             continue;
           }
           
           $field = self::escapeName($field);
           $alias = self::escapeName($alias);
-          $fields[] = $table_alias .'.'. $field .($alias == $field ? '' : ' AS '. $alias);
+          $fields[$alias] = $table_alias .'.'. $field .($alias == $field ? '' : ' AS '. $alias);
         }
         
-        $table_string = self::escapeName(strtoupper($join['masktype'])) .' JOIN ';
+        $sql_string = self::escapeName(strtoupper($join['masktype'])) .' JOIN ';
         
         if ($join['table'] instanceof SelectQuery) {
           $query = new $this($join['table']);
-          $table_string .= '('. (string)$query .')';
+          $sql_string .= '('. (string)$query .')';
         }
         else {
-          $table_string .= '{'. self::escapeName($join['table']) .'}';
+          $sql_string .= '{'. self::escapeName($join['table']) .'}';
         }
-        $table_string .= ' '. $table_alias;
+        $sql_string .= ' '. $table_alias;
         
         if (!empty($join['where'])) {
-          $table_string .= ' ON '. $join['where'];
+          $sql_string .= ' ON '. $join['where'];
 //           if ($join['where'] instanceof QueryCondition) {
-//             $table_string .= $this->conditionAnalyzer($join['where']);
+//             $sql_string .= $this->conditionAnalyzer($join['where']);
 //           }
 //           else {
-//             $table_string .= $join['where'];
+//             $sql_string .= $join['where'];
 //           }
         }
         
-        $tables[] = $table_string;
+        $tables[] = $sql_string;
       }
     }
     
-    $orders = array();
-    foreach ($this->query->getOrders() as $field => $direction) {
-      $field = self::escapeName($field);
-      if ($direction === SelectQuery::RANDOM) {
-        $fields[] = 'RAND() AS '. $field;
-      }
-      
-      $orders[] = $field .' '. self::mapOrder($direction);
-    }
-    
-    $sql = 'SELECT '. ($this->query->getDistinct() ? 'DISTINCT ' : '') .implode(', ', $fields) .' FROM '. implode(' ', $tables);
+    $flag_count = $this->query->getFlagCount();
+    // SQL查询语句
+    $sqls = array();
     
     $condition = $this->query->where();
     if (count($condition) > 0) {
-      $sql .= ' WHERE '. $this->conditionAnalyzer($condition);
+      $sqls['where'] = 'WHERE '. $this->conditionAnalyzer($condition);
     }
     
     $groups = $this->query->getGroups();
     if ($groups) {
-      $sql .= ' GROUP BY '. implode(', ', $groups);
+      $sqls['group'] = 'GROUP BY '. implode(', ', $groups);
     }
     
     $having = $this->query->having();
     if (count($having) > 0) {
-      $sql .= ' HAVING '. $this->conditionAnalyzer($having);
+      $sqls['having'] = 'HAVING '. $this->conditionAnalyzer($having);
     }
     
-    if ($orders) {
-      $sql .= ' ORDER BY '. implode(', ', $orders);
-    }
-    
-    $limit = $this->query->getLimit();
-    if ($limit) {
-      list($offset, $row_count) = $limit;
-      $sql .= " LIMIT " . (int)$row_count . " OFFSET " . (int)$offset;
+    if (!$flag_count) {
+      $orders = array();
+      foreach ($this->query->getOrders() as $field => $direction) {
+        $field = self::escapeName($field);
+        if ($direction === SelectQuery::RANDOM) {
+          $fields[$field] = 'RAND() AS '. $field;
+        }
+      
+        $orders[$field] = $field .' '. self::mapOrder($direction);
+      }
+      if ($orders) {
+        $sqls['order'] = 'ORDER BY '. implode(', ', $orders);
+      }
+      
+      $limit = $this->query->getLimit();
+      if ($limit) {
+        list($offset, $row_count) = $limit;
+        $sqls['limit'] = "LIMIT " . (int)$row_count . " OFFSET " . (int)$offset;
+      }
     }
     
     if ($unions) {
-      foreach ($unions as $union) {
-        $query = new $this($union['query'], $this->placeholder);
-        $sql .= ' UNION ' . $union['masktype'] . ' ' . (string)$query;
+      foreach ($unions as $key => $union) {
+        $query = new $this($union['query']);
+        $sqls['union_'. $key] = 'UNION ' . $union['masktype'] . ' ' . (string)$query;
       }
     }
     
     if ($this->query->getUpdate()) {
-      $sql .= ' FOR UPDATE';
+      $sqls['update'] = 'FOR UPDATE';
     }
     
-    return $sql;
+    $distinct = $this->query->getDistinct();
+    if ($flag_count) {
+      if (!$distinct) {
+        $fields = array_intersect_key($fields, $groups);
+        if (empty($fields) && $groups) {
+          $fields[] = '1 AS e';
+        }
+        else if (empty($fields)) {
+          $fields[] = 'COUNT(*) AS count';
+          $flag_count = FALSE;
+        }
+      }
+      else if ($groups) {
+        $distinct = FALSE;
+      }
+    }
+    
+    $sql = 'SELECT '. ($distinct ? 'DISTINCT ' : '') .implode(', ', $fields) .' FROM '. implode(' ', $tables);
+    $sql .= ' '. implode(' ', $sqls);
+    
+    if ($flag_count) {
+      return 'SELECT COUNT(*) AS count FROM ('. $sql .') count_table';
+    }
+    else {
+      return $sql;
+    }
   }
 
   /**
