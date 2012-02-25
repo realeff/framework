@@ -130,9 +130,7 @@ abstract class Query {
    * @param string $identifier
    */
   public function setIdentifier($identifier) {
-    if (!isset($this->identifier)) {
-      $this->identifier = $identifier;
-    }
+    $this->identifier = $identifier;
   }
   
   /**
