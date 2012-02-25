@@ -1,5 +1,8 @@
 <?php
 
+defined('STORE_DRIVER_PATH') or die;
+
+
 class StoreStatementDatabase_mysql extends StoreStatementBase {
 
 	/* (non-PHPdoc)

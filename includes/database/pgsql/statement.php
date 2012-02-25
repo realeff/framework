@@ -1,5 +1,7 @@
 <?php
 
+defined('STORE_DRIVER_PATH') or die;
+
 class StoreStatementDatabase_pgsql extends StoreStatementBase {
 
   private $_index = 0;

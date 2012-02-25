@@ -65,6 +65,8 @@
  * pg_version — Returns an array with client, protocol and server version (when available)
  */
 
+defined('STORE_DRIVER_PATH') or die;
+
 class StoreDatabase_pgsql extends StoreDatabase  {
   
   protected $dsn;

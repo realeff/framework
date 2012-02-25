@@ -37,6 +37,9 @@
  * mysql_unbuffered_query — 向 MySQL 发送一条 SQL 查询，并不获取和缓存结果的行
  */
 
+defined('STORE_DRIVER_PATH') or die;
+
+
 class StoreDatabase_mysql extends StoreDatabase  {
   
   

@@ -424,7 +424,7 @@ abstract class StoreDatabase {
    *
    * @return StoreSchema
    */
-  abstract public function schema();
+  //abstract public function schema();
   
   /**
    * 生成临时表数据记录
