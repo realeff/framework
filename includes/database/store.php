@@ -945,9 +945,20 @@ class StoreQuerier {
    */
   protected function makeQuery() {
     if (isset($this->query)) {
+      $query = $this->query;
+      if ($query instanceof SelectQuery) {
+        if ($query->getUpdate()) {
+          $this->addFilter('update');
+        }
+        if ($query->getFlagCount()) {
+          $this->addFilter('count');
+        }
+      }
+      
       $identifier = $this->connection->driver() .':'. $this->name;
-      $identifier .= ' -'. $this->query. implode('-', $this->filters);
-      $this->query->setIdentifier($identifier);
+      $identifier .= ' '. (string)$query .'-'. implode('-', $this->filters);
+      $query->setIdentifier($identifier);
+      $query->end();
       
       return TRUE;
     }
@@ -1025,7 +1036,7 @@ class StoreQuerier {
   }
   
   /**
-   * 执行查询操并返回所影响的行数
+   * 返回所影响的行数
    *
    * @return int
    */
@@ -1297,6 +1308,13 @@ class StoreConnectionNotDefinedException extends Exception {}
  */
 class StoreDriverNotSpecifiedException extends Exception {}
 
+/**
+ * 如果有一个执行数据库操作错误抛出异常。
+ * 
+ * @author realeff
+ *
+ */
+class StoreDatabaseException extends Exception {}
 
 /**
  * 存储数据处理接口
@@ -1306,22 +1324,63 @@ class StoreDriverNotSpecifiedException extends Exception {}
  */
 interface StoreStatementInterface {
 
+  /**
+   * 可带参执行查询
+   * @param array() $args
+   * 
+   * @return boolean
+   */
   public function execute($args = array());
 
+  /**
+   * 获取结果集数量
+   * 
+   * @return int
+   */
   public function rowCount();
 
   //public function fetch();
   
+  /**
+   * 获取包含数字和关联字段的数组
+   * 
+   * @return array
+   */
   public function fetchAll();
 
+  /**
+   * 获取指定偏移量字段值
+   * 
+   * @param int $index
+   * 
+   * @return mixed
+   */
   public function fetchField($index = 0);
 
+  /**
+   * 获取关联字段数组
+   * 
+   * @return array
+   */
   public function fetchAssoc();
 
+  /**
+   * 获取数字数组
+   * 
+   * @return array
+   */
   public function fetchArray();
 
+  /**
+   * 获取数据对象
+   * 
+   * @return object
+   */
   public function fetchObject();
 
+  /**
+   * 释放结果内存
+   */
   public function freeResult();
   
   //public function errorCode();
