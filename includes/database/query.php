@@ -1676,7 +1676,7 @@ class SelectQuery extends Query {
    * 
    * @return boolean
    */
-  final public function getCountFlag() {
+  final public function getFlagCount() {
     return $this->forCount;
   }
 }
