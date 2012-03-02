@@ -14,20 +14,39 @@ define('VERSION', '1.0');
 /**
  * 最低PHP版本要求
  */
-define('SYS_PHP_MINIMUM_VERSION', '5.2.4');
+define('REALEFF_MINIMUM_PHP_VERSION', '5.2.4');
 
 /**
  * 最低PHP内存使用要求
  */
-define('SYS_PHP_MINIMUM_MEMORY', '32M');
+define('REALEFF_MINIMUM_PHP_MEMORY_LIMIT', '32M');
 
 /**
  * RealEff系统根目录。
  */
-if (!defined('SYS_ROOT')) {
-  define('SYS_ROOT', substr(dirname(__FILE__), 0, -9));
+if (!defined('REALEFF_ROOT')) {
+  define('REALEFF_ROOT', substr(dirname(__FILE__), 0, -9));
 }
 
+define('REALEFF_BOOTSTRAP_CONFIGURATION', 0x3); // 0x001 + 0x002
+
+define('REALEFF_BOOTSTRAP_FIREWALL', 0x7); // 0x001 + 0x002 + 0x004
+
+define('REALEFF_BOOTSTRAP_REQUEST', 0xB); // 0x001 + 0x002 + 0x008
+
+define('REALEFF_BOOTSTRAP_STORAGE', 0x13); // 0x001 + 0x002 + 0x010
+
+define('REALEFF_BOOTSTRAP_SESSION', 0x21); // 0x001 + 0x020
+
+define('REALEFF_BOOTSTRAP_VARIABLE', 0x43); // 0x001 + 0x002 + 0x040
+
+define('REALEFF_BOOTSTRAP_LANGUAGE', 0x83); // 0x001 + 0x002 + 0x080
+
+define('REALEFF_BOOTSTRAP_PAGE_HEADER', 0x101); // 0x001 + 0x100
+
+define('REALEFF_BOOTSTRAP_FINISH', 0x3FE); // 0x001 + 0x002 + 0x010 + 0x020 + 0x040 + 0x080 + 0x100 + 0x200
+
+define('REALEFF_BOOTSTRAP_FULL', 0xFFF); // 0xFFFF
 
 /**
  * 启动指定名称的计时器,如果你开始和停止多次计时，测量时间间隔会积累起来。
@@ -115,7 +134,7 @@ static $statics = array();
 /**
  * 初始化环境变量
  */
-function _realeff_init_env_vars() {
+function _realeff_server_variable_initialize() {
   if (!isset($_SERVER['REQUEST_TIME'])) {
     $_SERVER['REQUEST_TIME'] = time();
   }
@@ -136,23 +155,59 @@ function _realeff_init_env_vars() {
   }
   $_SERVER['HTTP_HOST'] = (isset($_SERVER['HTTP_HOST']) ? strtolower($_SERVER['HTTP_HOST']) : '');
   
-   $http_protocol = $_ENV['https'] ? 'https' : 'http';
-   $_ENV['base_url'] = $_ENV['base_root'] = $http_protocol . '://' . $_SERVER['HTTP_HOST'];
+  $http_protocol = $_ENV['https'] ? 'https' : 'http';
+  $_ENV['base_url'] = $_ENV['base_root'] = $http_protocol . '://' . $_SERVER['HTTP_HOST'];
   
-   if ($path = dirname($_SERVER['SCRIPT_NAME'])) {
-     $_ENV['base_path'] = rtrim($path, '/');
-     $_ENV['base_url'] .= $path;
-     $_ENV['base_path'] .= '/';
-   }
-   else {
-     $_ENV['base_path'] = '/';
-   }
+  if ($path = dirname($_SERVER['SCRIPT_NAME'])) {
+    $_ENV['base_path'] = rtrim($path, '/');
+    $_ENV['base_url'] .= $path;
+    $_ENV['base_path'] .= '/';
+  }
+  else {
+    $_ENV['base_path'] = '/';
+  }
+   
+  // 初始化服务端和客户端信息
+  /**
+   * HTTP_HOST
+   * SERVER_NAME
+   * SERVER_ADDR
+   * SERVER_PORT
+   * REMOTE_ADDR
+   * DOCUMENT_ROOT
+   * SERVER_ADMIN
+   * SCRIPT_FILENAME
+   * GATEWAY_INTERFACE
+   * REQUEST_METHOD
+   * QUERY_STRING
+   * REQUEST_URI
+   * SCRIPT_NAME
+   * HTTP_USER_AGENT
+   * HTTP_ACCEPT
+   * HTTP_ACCEPT_LANGUAGE
+   * HTTP_ACCEPT_ENCODING
+   * HTTP_ACCEPT_CHARSET
+   * HTTP_CONNECTION
+   * HTTP_COOKIE
+   * SERVER_SIGNATURE
+   * SERVER_SOFTWARE
+   *
+   */
+  /**
+   * 服务端软件(Apache、Nginx、Lighttpd、Tomcat、IBM WebSphere、IIS)
+   * 服务端软件版本(version)
+   * HTTP主机(SERVER_NAME、HTTP_HOST)
+   * HTTP端口(SERVER_NAME)
+   * 主文档目录(DOCUMENT_ROOT)
+   * 执行的文件名(SCRIPT_FILENAME、SCRIPT_NAME)
+   * ...
+   */
 }
 
 /**
- * 引导程序初始化RealEff运行环境支持
+ * RealEff系统运行环境初始化
  */
-function _realeff_init_env() {
+function _realeff_environment_initialize() {
   // 默认设置PHP的错误报告级别，DEBUG模式下设置为E_ALL级别。
   if (defined('SYS_DEBUG')) {
     error_reporting(E_ALL);
@@ -182,7 +237,7 @@ function _realeff_init_env() {
   //spl_autoload_register('_realeff_autoload_interface');
   
   // 检查PHP版本支持
-  //if (version_compare(phpversion(), SYS_PHP_MINIMUM_VERSION) < 0) {
+  //if (version_compare(phpversion(), REALEFF_PHP_MINIMUM_VERSION) < 0) {
     // 输出警告信息
     //trigger_error('', E_CORE_WARNING);
   //}
@@ -193,10 +248,12 @@ function _realeff_init_env() {
   // 初始化环境变量
   $_ENV = array();
   
-  _realeff_init_env_vars();
+  _realeff_server_variable_initialize();
   
   // 切换到系统工作根目录
-  //chdir(SYS_ROOT);
+  //chdir(REALEFF_ROOT);
+  
+  
 }
 
 
@@ -211,6 +268,9 @@ global $multisites;
       'serial' => 0,
       'directory' => '',
       );
+//   if (!is_array($multisites)) {
+//     return $site;
+//   }
   
   $script_name = $_ENV['base_path'];
   $http_host = strtok($_SERVER['HTTP_HOST'], ':');
@@ -233,41 +293,78 @@ global $multisites;
 }
 
 /**
- * 引导程序初始化RealEff系统配置
+ * 引导程序初始化RealEff站点设置
  */
-function _realeff_init_config() {
-global $databases, $dataquerier, $multisites, $auth_key, $cookie_domain, $library_dir, $extension_dir, $config;
+function _realeff_setting_initialize() {
+global $databases, $dataquerier, $config, $cookie_domain, $auth_key;
 
-  // 允许设置以下变量
-  $databases = $dataquerier = $multisites = $config = array();
-  $library_dir = $extension_dir = $cookie_domain = $auth_key = '';
-
-  if (file_exists(SYS_ROOT .'/config.php')) {
-    include_once SYS_ROOT .'/config.php';
+  // 如果站点工作目录下建立了settings.php配置文件，则加载此文件。
+  if (file_exists($_ENV['workspace'] .'/settings.php')) {
+    include_once $_ENV['workspace'] .'/settings.php';
   }
   
-  // 允许在config.php文件夹指定第三方应用提供的API类库的具体位置
+  // cookie域
+  if (empty($cookie_domain)) {
+    // HTTP_HOST can be modified by a visitor, but we already sanitized it
+    // in drupal_settings_initialize().
+    if (!empty($_SERVER['HTTP_HOST'])) {
+      $cookie_domain = $_SERVER['HTTP_HOST'];
+      // Strip leading periods, www., and port numbers from cookie domain.
+      $cookie_domain = ltrim($cookie_domain, '.');
+      if (strpos($cookie_domain, 'www.') === 0) {
+        $cookie_domain = substr($cookie_domain, 4);
+      }
+      $cookie_domain = explode(':', $cookie_domain);
+      $cookie_domain = '.' . $cookie_domain[0];
+    }
+  }
+  
+  // 授权码
+  if (empty($auth_key)) {
+    $auth_key = md5($cookie_domain);
+  }
+}
+
+/**
+ * 引导程序加载RealEff系统配置
+ */
+function _realeff_bootstrap_configuration() {
+global $databases, $dataquerier, $multisites, $config, $auth_key, $cookie_domain;
+global $library_dir, $extension_dir;
+
+  // 初始化以下数组变量
+  $databases = array();
+  $dataquerier = array();
+  $multisites = array();
+  $config = array();
+
+  // 加载系统配置文件
+  if (file_exists(REALEFF_ROOT .'/config.php')) {
+    include_once REALEFF_ROOT .'/config.php';
+  }
+  
+  // 允许在config.php文件夹指定第三方应用提供的API类库位置
   if ($library_dir && file_exists($library_dir)) {
     $library_dir = realpath($library_dir);
   }
   else {
-    $library_dir = SYS_ROOT .'/libraries';
+    $library_dir = REALEFF_ROOT .'/libraries';
   }
   
-  // 允许在config.php文件中指定扩展目录的具体位置
+  // 允许在config.php文件中指定扩展目录位置
   if ($extension_dir && file_exists($extension_dir)) {
     $extension_dir = realpath($extension_dir);
   }
   else {
-    $extension_dir = SYS_ROOT .'/extension';
+    $extension_dir = REALEFF_ROOT .'/extension';
   }
   
-  // 自动加载第三方应用API库
+  // 注册自动加载第三方应用API
   spl_autoload_register('_realeff_autoload_library');
   
   // 设置站点序号及站点工作空间
   $_ENV['serial'] = 0;
-  $_ENV['workspace'] = SYS_ROOT .'/workspace';
+  $_ENV['workspace'] = REALEFF_ROOT .'/workspace';
   if ($multisites) {
     $site = _realeff_site_config();
     // 站点序号（编码）
@@ -277,118 +374,199 @@ global $databases, $dataquerier, $multisites, $auth_key, $cookie_domain, $librar
     }
   }
   
-  // 如果站点目录下建立了settings.php配置文件，则加载此文件。
-  if (file_exists($_ENV['workspace'] .'/settings.php')) {
-    include_once $_ENV['workspace'] .'/settings.php';
-  
-    $_ENV['include_settings_php'] = TRUE;
-  }
-
-  // 检查数据库是否配置，如果没有配置，则引导安装程序。
-  
-  // 加载站点配置信息（config缓存）
+  // 初始化站点设置
+  _realeff_setting_initialize();
   
   // 处理多站点cookie共享问题，区分https模式，防止cookie泄漏。
   if ($cookie_domain) {
     $session_name = $cookie_domain;
   }
+  else {
+    // Otherwise use $base_url as session name, without the protocol
+    // to use the same session identifiers across http and https.
+    list( , $session_name) = explode('://', $_ENV['base_url'], 2);
+  }
   
-  // 检查客户移动平台(mobile)
+  // Per RFC 2109, cookie domains must contain at least one dot other than the
+  // first. For hosts such as 'localhost' or IP Addresses we don't set a cookie domain.
+  if (count(explode('.', $cookie_domain)) > 2 && !is_numeric(str_replace('.', '', $cookie_domain))) {
+    ini_set('session.cookie_domain', $cookie_domain);
+  }
   
-  // 检查机器人访问(robot)
+  // To prevent session cookies from being hijacked, a user can configure the
+  // SSL version of their website to only transfer session cookies via SSL by
+  // using PHP's session.cookie_secure setting. The browser will then use two
+  // separate session cookies for the HTTPS and HTTP versions of the site. So we
+  // must use different session identifiers for HTTPS and HTTP to prevent a
+  // cookie collision.
+  if ($_ENV['https']) {
+    ini_set('session.cookie_secure', TRUE);
+  }
+  $prefix = ini_get('session.cookie_secure') ? 'SSESS' : 'SESS';
+  session_name($prefix . substr(hash('sha256', $session_name), 0, 32));
+}
+
+/**
+ * 启动Realeff系统防火墙
+ */
+function _realeff_bootstrap_firewall() {
+  
+}
+
+/**
+ * 引导程序检查客户端请求及数据
+ */
+function _realeff_bootstrap_request() {
+
+  // 检查客户端IP访问限制
+  //realeff_block_denied
+  //realeff_is_denied
+  
+  // 检查恶意访问攻击
+  
+  // 禁止机器人访问
+  if (defined('DISABLE_ROBOT')) {
+    // 检查机器人访问(robot)
+  }
+  
+  // 支持移动设备访问
+  if (defined('ENABLE_MOBILE')) {
+    // 检查客户端移动设备(mobile)
+  }
+  
+  // 检查输入数据安全性
   
   // 客户平台检查
   
-  // 初始化服务端和客户端信息
   /**
-   * HTTP_HOST 
-   * SERVER_NAME 
-   * SERVER_ADDR
-   * SERVER_PORT 
-   * REMOTE_ADDR 
-   * DOCUMENT_ROOT
-   * SERVER_ADMIN 
-   * SCRIPT_FILENAME 
-   * GATEWAY_INTERFACE 
-   * REQUEST_METHOD 
-   * QUERY_STRING 
-   * REQUEST_URI 
-   * SCRIPT_NAME 
-   * HTTP_USER_AGENT 
-   * HTTP_ACCEPT 
-   * HTTP_ACCEPT_LANGUAGE
-   * HTTP_ACCEPT_ENCODING
-   * HTTP_ACCEPT_CHARSET 
-   * HTTP_CONNECTION 
-   * HTTP_COOKIE 
-   * SERVER_SIGNATURE 
-   * SERVER_SOFTWARE 
-   * 
-   */
-  /**
-   * 服务端软件(Apache、Nginx、Lighttpd、Tomcat、IBM WebSphere、IIS)
-   * 服务端软件版本(version)
-   * HTTP主机(SERVER_NAME、HTTP_HOST)
-   * HTTP端口(SERVER_NAME)
-   * 主文档目录(DOCUMENT_ROOT)
-   * 执行的文件名(SCRIPT_FILENAME、SCRIPT_NAME)
-   * ...
-   */
-  /**
-   * 客户端平台(Windows、Mac、iOS、Linux、)
-   * 客户浏览器(IE、Firefox、chrome、Safri、Opera、)
-   * 客户浏览器版本(version)
+   * 客户端系统(Windows、Mac、iOS、Linux、)
+   * 客户端浏览器(IE、Firefox、chrome、Safri、Opera、)
+   * 客户端浏览器版本(version)
+   * 客户端Javascript支持及版本号
    * 是否移动平台(mobile)
    * 是否机器人访问(robot)
    * 是否安全链接(https)
    */
   
+  // 解析客户端提交的数据
+  // 检查请求数据安全性
+  //$no_unset = array( 'GLOBALS', '_GET', '_POST', '_COOKIE', '_REQUEST', '_SERVER', '_ENV', '_FILES', 'table_prefix' );
+}
 
-  // 初始化系统配置
-  // http和https分别需要作何处理
+/**
+ * 引导程序加载数据存储器
+ */
+function _realeff_bootstrap_storage() {
   
-  // 检查或初始化SESSIONID，COOKIEID等信息
-}
-
-function _realeff_init_database() {
-  ;
-}
-
-function _realeff_init_session() {
+  // 检查数据库是否配置，如果没有配置，则引导安装程序。
+  if (empty($databases)) {
+    // install.php执行安装程序
+  }
   ;
 }
 
 /**
- * 引导程序
+ * 初始化Realeff系统会话
  */
-function realeff_bootstrap() {
+function _realeff_session_initialize() {
+  ;
+}
 
-  // 初始化系统运行环境
-  _realeff_init_env();
-  // 启动引导程序计时
+/**
+ * 初始化Realeff系统变量
+ */
+function _realeff_variable_initialize() {
+  
+}
+
+/**
+ * 引导程序设置页面信息头
+ */
+function _realeff_bootstrap_page_header() {
+  
+}
+
+/**
+ * 初始化Realeff系统语言
+ */
+function _realeff_language_initialize() {
+  
+}
+
+/**
+ * Realeff系统引导程序完成启动
+ */
+function _realeff_bootstrap_finish() {
+  
+}
+
+/**
+ * 启动Realeff系统引导程序
+ */
+function realeff_bootstrap($service) {
+  static $stored_bootstrap = REALEFF_BOOTSTRAP_FULL;
+  $bootstrap = 0x001;
+
+  // 启动引导程序计时器
   timer_start('bootstrap');
-
-  // 初始化系统配置
-  _realeff_init_config();
-
-  // 初始化数据访问（访问介质有数据库、文件、内存、第三方数据）
-  _realeff_init_database();
-
-  // 初始化会话（session、http、cli、cgi、soap、ajax等））
-  _realeff_init_session();
-
-  // 读取系统缓存内容
-
-  // 初始化系统变量
-
-  // 初始化语言
-
-  // 初始化系统核心框架
-
-  // 停止引导程序计时
+  
+  while ($service > $bootstrap) {
+    if (!($stored_bootstrap & $service & $bootstrap)) {
+      $bootstrap <<= 1;
+      continue;
+    }
+    
+    $stored_bootstrap &= ~$bootstrap;
+    switch ($bootstrap) {
+      case 0x001:
+        // 实始化系统运行环境
+        _realeff_environment_initialize();
+        break;
+    
+      case 0x002:
+        // 加载系统配置
+        _realeff_bootstrap_configuration();
+        break;
+    
+      case 0x004:
+        _realeff_bootstrap_firewall();
+        break;
+    
+      case 0x008:
+        _realeff_bootstrap_request();
+        break;
+    
+      case 0x010:
+        // 初始化数据库（访问介质有数据库、文件、内存、第三方数据），实始化缓存系统
+        _realeff_bootstrap_storage();
+        break;
+    
+      case 0x020:
+        _realeff_session_initialize();
+        break;
+    
+      case 0x040:
+        _realeff_variable_initialize();
+        break;
+    
+      case 0x080:
+        _realeff_language_initialize();
+        break;
+    
+      case 0x100:
+        _realeff_bootstrap_page_header();
+        break;
+    
+      case 0x200:
+        _realeff_bootstrap_finish();
+        break;
+    }
+    
+    $bootstrap <<= 1;
+  }
+  
+  // 停止引导程序计时器
   timer_stop('bootstrap');
-
-  return TRUE;
 }
 
 
@@ -425,7 +603,7 @@ function _realeff_exception_handler($exception) {
  * @return array
  */
 function _realeff_read_phpdata($name) {
-  $filename = SYS_ROOT ."/cache/{$name}.php";
+  $filename = REALEFF_ROOT ."/cache/{$name}.php";
   
   $data = array();
   if (file_exists($filename)) {
@@ -446,7 +624,7 @@ function _realeff_read_phpdata($name) {
  * @param mixed $data 存储的数据
  */
 function _realeff_write_phpdata($name, $data) {
-  $filename = SYS_ROOT ."/cache/{$name}.php";
+  $filename = REALEFF_ROOT ."/cache/{$name}.php";
   
   file_put_contents($filename, '<?php return ' . var_export($data, true) . ';', LOCK_EX);
 }
@@ -458,7 +636,7 @@ function _realeff_write_phpdata($name, $data) {
  *   清除php缓存数据成功返回TRUE，失败返回FALSE。
  */
 function _realeff_clear_phpdata() {
-  $filemask = SYS_ROOT .'/cache/*.php';
+  $filemask = REALEFF_ROOT .'/cache/*.php';
   
   return array_map( "unlink", glob($filemask));
 }
@@ -549,3 +727,41 @@ function _realeff_autoload_class($class) {
   return FALSE;
 }
 
+/**
+ * 获取客户端IP地址
+ *
+ * @return string
+ */
+function ip_address() {
+  $ip_address = &realeff_static(__FUNCTION__);
+
+  if (!isset($ip_address)) {
+    $ip_address = $_SERVER['REMOTE_ADDR'];
+
+    if (variable_get('reverse_proxy', 0)) {
+      $reverse_proxy_header = variable_get('reverse_proxy_header', 'HTTP_X_FORWARDED_FOR');
+      if (!empty($_SERVER[$reverse_proxy_header])) {
+        // If an array of known reverse proxy IPs is provided, then trust
+        // the XFF header if request really comes from one of them.
+        $reverse_proxy_addresses = variable_get('reverse_proxy_addresses', array());
+
+        // Turn XFF header into an array.
+        $forwarded = explode(',', $_SERVER[$reverse_proxy_header]);
+
+        // Trim the forwarded IPs; they may have been delimited by commas and spaces.
+        $forwarded = array_map('trim', $forwarded);
+
+        // Tack direct client IP onto end of forwarded array.
+        $forwarded[] = $ip_address;
+
+        // Eliminate all trusted IPs.
+        $untrusted = array_diff($forwarded, $reverse_proxy_addresses);
+
+        // The right-most IP is the most specific we can trust.
+        $ip_address = array_pop($untrusted);
+      }
+    }
+  }
+
+  return $ip_address;
+}
