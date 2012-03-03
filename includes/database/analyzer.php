@@ -76,14 +76,14 @@ abstract class SQLAnalyzer {
     $this->query = $query;
     
     if (!isset(self::$_queryStrings)) {
-      self::$_queryStrings = _realeff_read_phpdata(__CLASS__);
+      self::$_queryStrings = realeff_data_load('query_string', 'cache');
       self::$_modefied = FALSE;
     }
   }
   
   public function __destruct() {
     if (self::$_modefied) {
-      _realeff_write_phpdata(__CLASS__, self::$_queryStrings);
+      realeff_data_save('query_string', self::$_queryStrings, 'cache');
       self::$_modefied = FALSE;
     }
   }
