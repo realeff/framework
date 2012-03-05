@@ -617,7 +617,7 @@ abstract class StoreDatabase {
     }
     else {
       $match = $args[$match];
-      unset($args[$match]);
+      //unset($args[$match]);
     }
   
     return $this->quote($match);
@@ -930,7 +930,7 @@ class StoreQuerier {
    * @param string $table 数据表
    * @param QueryParameter $parameter 数据参数
    *
-   * @return InsertQuery
+   * @return ReplaceQuery
    */
   final public function insert_update($table) {
     if (!isset($this->query)) {
