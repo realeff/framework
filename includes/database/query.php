@@ -35,9 +35,9 @@ abstract class Query {
   const MULTISELECT = 0x010;
   
   /**
-   * 替换
+   * 唯一插入查询
    */
-  const REPLACE = 0x020;
+  const UNIQUEINSERT = 0x020;
   
   /**
    * 标识符
@@ -273,7 +273,7 @@ class QueryParameter implements Iterator, ArrayAccess, Countable {
 
   /**
    * (non-PHPdoc)
-   * @see Iterator::key()
+   * @see Iterator::unique()
    */
   public function key() {
     // TODO Auto-generated method stub
@@ -962,37 +962,44 @@ class InsertQuery extends Query {
 }
 
 /**
- * 替换插入查询
+ * 唯一插入查询
  * 
  * @author realeff
  *
  */
-class ReplaceQuery extends Query {
+class UniqueInsertQuery extends Query {
   
   /**
-   * 数据关键字段值
+   * 唯一关键字数据
    * 
    * @var array
    */
   protected $keys = array();
   
   /**
-   * 数据字段值
+   * 插入字段数据
    * 
    * @var array
    */
-  protected $fields = array();
+  protected $insertFields = array();
   
   /**
-   * 默认数据
+   * 更新字段数据
    * 
    * @var array
    */
-  protected $defaults = array();
+  protected $updateFields = array();
+  
+  /**
+   * 更新这些字段数据所使用的表达式参数。
+   * 
+   * @var array
+   */
+  protected $arguments = array();
   
   
   public function __toString() {
-    return 'replace';
+    return 'unique insert';
   }
 
   /**
@@ -1001,7 +1008,7 @@ class ReplaceQuery extends Query {
    */
   public function type() {
     // TODO Auto-generated method stub
-    return Query::REPLACE;
+    return Query::UNIQUEINSERT;
   }
   
   /**
@@ -1010,7 +1017,7 @@ class ReplaceQuery extends Query {
    * @param string $field
    * @param mixed $value
    * 
-   * @return ReplaceQuery
+   * @return UniqueInsertQuery
    */
   public function key($field, $value) {
     $this->keys[$field] = $field;
@@ -1025,7 +1032,7 @@ class ReplaceQuery extends Query {
    * @param array $fields
    * @param array $values
    * 
-   * @return ReplaceQuery
+   * @return UniqueInsertQuery
    */
   public function keys(array $fields, array $values = array()) {
     if ($values) {
@@ -1041,7 +1048,7 @@ class ReplaceQuery extends Query {
   }
   
   /**
-   * 获取关键字段数据
+   * 获取唯一字段数据
    * 
    * @return array
    */
@@ -1055,10 +1062,11 @@ class ReplaceQuery extends Query {
    * @param string $field
    * @param mixed $value
    * 
-   * @return ReplaceQuery
+   * @return UniqueInsertQuery
    */
   public function field($field, $value) {
-    $this->fields[$field] = $field;
+    $this->insertFields[$field] = $field;
+    $this->updateFields[$field] = $field;
     $this->parameter[$field] = $value;
     
     return $this;
@@ -1070,7 +1078,7 @@ class ReplaceQuery extends Query {
    * @param array $fields
    * @param array $values
    * 
-   * @return ReplaceQuery
+   * @return UniqueInsertQuery
    */
   public function fields(array $fields, array $values = array()) {
     if ($values) {
@@ -1078,7 +1086,8 @@ class ReplaceQuery extends Query {
     }
     
     foreach ($fields as $field => $value) {
-      $this->fields[$field] = $field;
+      $this->insertFields[$field] = $field;
+      $this->updateFields[$field] = $field;
       $this->parameter[$field] = $value;
     }
     
@@ -1086,12 +1095,46 @@ class ReplaceQuery extends Query {
   }
   
   /**
-   * 获取字段数据
+   * 增加一个插入字段数据
+   *
+   * @param string $field
+   * @param mixed $value
+   *
+   * @return UniqueInsertQuery
+   */
+  public function insertField($field, $value) {
+    $this->insertFields[$field] = $this->parameter->add($field, $value);
+    
+    return $this;
+  }
+  
+  /**
+   * 增加一组插入字段数据
+   *
+   * @param array $fields
+   * @param array $values
+   *
+   * @return UniqueInsertQuery
+   */
+  public function insertFields(array $fields, array $values = array()) {
+    if ($values) {
+      $fields = array_combine($fields, $values);
+    }
+    
+    foreach ($fields as $field => $value) {
+      $this->insertFields[$field] = $this->parameter->add($field, $value);
+    }
+    
+    return $this;
+  }
+  
+  /**
+   * 获取插入字段数据
    * 
    * @return array
    */
-  public function &getFields() {
-    return $this->fields;
+  public function &getInsertFields() {
+    return $this->insertFields;
   }
   
   /**
@@ -1101,13 +1144,85 @@ class ReplaceQuery extends Query {
    */
   public function useDefaults(array $defaultValues) {
     foreach ($defaultValues as $field => $value) {
-      if (!isset($this->fields[$field])) {
-        $this->fields[$field] = $field;
+      if (!isset($this->insertFields[$field])) {
+        $this->insertFields[$field] = $field;
         $this->parameter[$field] = $value;
       }
     }
+  }
   
-    $this->defaults = $defaultValues;
+  /**
+   * 增加一个更新字段数据
+   *
+   * @param string $field
+   * @param mixed $value
+   *
+   * @return UniqueInsertQuery
+   */
+  public function updateField($field, $value) {
+    $this->updateFields[$field] = $this->parameter->add($field, $value);
+    
+    return $this;
+  }
+  
+  /**
+   * 增加一组更新字段数据
+   *
+   * @param array $fields
+   * @param array $values
+   *
+   * @return UniqueInsertQuery
+   */
+  public function updateFields(array $fields, array $values = array()) {
+    if ($values) {
+      $fields = array_combine($fields, $values);
+    }
+    
+    foreach ($fields as $field => $value) {
+      $this->updateFields[$field] = $this->parameter->add($field, $value);
+    }
+    
+    return $this;
+  }
+  
+  /**
+   * 获取更新字段数据
+   * 
+   * @return array
+   */
+  public function &getUpdateFields() {
+    return $this->updateFields;
+  }
+  
+  /**
+   * 增加一个更新表达式数据
+   * 
+   * @param string $field
+   * @param string $expression
+   * @param array $arguments
+   * 
+   * @example
+   *   表达式数据: $fields[$field] = array('expression' => $expression, $arg0, $arg1, $arg2);
+   * 
+   * @return UniqueInsertQuery
+   */
+  public function updateExpression($field, $expression, array $arguments = array()) {
+    $this->updateFields[$field] = '('. $expression .')';
+    $this->arguments[$field] = $arguments;
+    foreach ($arguments as $field => $value) {
+      $this->parameter[$field] = $value;
+    }
+    
+    return $this;
+  }
+  
+  /**
+   * 获取表达式参数
+   * 
+   * @return array
+   */
+  final public function &getArguments() {
+    return $this->arguments;
   }
 
   /**
@@ -1880,7 +1995,7 @@ class MultiSelectQuery extends SelectQuery implements MultiSelectQueryInterface 
   }
   
   public function __toString() {
-    return 'multiselect';
+    return 'multi select';
   }
   
   /**

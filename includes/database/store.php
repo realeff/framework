@@ -925,20 +925,20 @@ class StoreQuerier {
   }
   
   /**
-   * 插入更新数据，此方法会先检查指定数据是否存在，如果不存在则插入数据，如果存在则更新数据。
+   * 插入唯一数据，此方法会先检查指定数据是否存在，如果不存在则插入数据，如果存在则更新数据。
    *
    * @param string $table 数据表
    * @param QueryParameter $parameter 数据参数
    *
-   * @return ReplaceQuery
+   * @return UniqueInsertQuery
    */
-//   final public function insert_update($table) {
-//     if (!isset($this->query)) {
-//       $this->query = new ReplaceQuery($table, $this->parameter);
-//     }
+  final public function insert_unique($table) {
+    if (!isset($this->query)) {
+      $this->query = new UniqueInsertQuery($table, $this->parameter);
+    }
     
-//     return $this->query;
-//   }
+    return $this->query;
+  }
   
   /**
    * 
@@ -1544,6 +1544,13 @@ function store_close($target = NULL) {
  */
 function store_driver() {
   return Store::getConnection()->driver();
+}
+
+/**
+ * 测试默认存储设备链接
+ */
+function store_ping() {
+  return Store::getConnection()->ping();
 }
 
 /**

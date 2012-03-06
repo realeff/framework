@@ -451,16 +451,16 @@ class SQLUpdateAnalyzer extends SQLAnalyzer implements QueryAnalyzerInterface {
 
 
 /**
- * 替换插入数据SQL分析器
+ * 插入唯一数据SQL分析器
  *
  * @author realeff
  *
  */
-class SQLReplaceAnalyzer extends SQLAnalyzer implements QueryAnalyzerInterface {
+class SQLUniqueInsertAnalyzer extends SQLAnalyzer implements QueryAnalyzerInterface {
 
   /**
    * 
-   * @var ReplaceQuery
+   * @var UniqueInsertQuery
    */
   protected $query;
   
@@ -470,36 +470,44 @@ class SQLReplaceAnalyzer extends SQLAnalyzer implements QueryAnalyzerInterface {
    */
   protected function queryString() {
     // TODO Auto-generated method stub
-    if (!($this->query instanceof ReplaceQuery)) {
+    if (!($this->query instanceof UniqueInsertQuery)) {
       return NULL;
     }
 
     $table = self::escapeName($this->query->getTable());
     $keys = $this->query->getKeys();
+    $pieces = array('1 = 1');
+    foreach ($keys as $field => $value) {
+      $pieces[] = self::escapeName($field) .' = '. $value;
+    }
     // 查询数据，如果数据已经有则更新数据，否则插入数据。
-    return;
-    
-    $fields = $this->query->getFields();
-    foreach ($fields as $key => $field) {
-      $fields[$key] = self::escapeName($field);
+    $sql = 'IF NOT EXISTS (';
+    $sql .= 'SELECT 1 FROM {'. $table .'} WHERE '. implode(' AND ', $pieces);
+    $sql .= ") \n";
+    // 满足插入条件
+    $insertFields = $keys + $this->query->getInsertFields();
+    $fields = $values = array();
+    foreach ($insertFields as $field => $value) {
+      $fields[] = self::escapeName($field);
+      $values[] = $value;
     }
-
-    $query = $this->query->select();
-    if (!empty($query)) {
-      return 'INSERT INTO {'. $table .'} ('. implode(', ', $fields) .') '. $this->queryAnalyzer($query);
-    }
-
-    $pieces = array();
-    foreach ($this->values as $values) {
-      $placeholders = array();
-      foreach ($fields as $field) {
-        $placeholders[] = $values[$field];
+    $sql .= 'INSERT INTO {'. $table .'} ('. implode(', ', $fields) .') VALUES (:'. implode(', :', $values) .')';
+    $sql .= "ELSE \n";
+    // 满足更新条件
+    $updateFields = $this->query->getUpdateFields();
+    $arguments = $this->query->getArguments();
+    $placeholders = array();
+    foreach ($updateFields as $field => $value) {
+      if (isset($arguments[$field])) {
+        $placeholders[] = self::escapeName($field) .'='. $value;
       }
-
-      $pieces[] = 'INSERT INTO {'. $table .'} ('. implode(', ', $fields) .') VALUES (:' . implode(', :', $values) . ')';
+      else {
+        $placeholders[] = self::escapeName($field) .'=:'. $value;
+      }
     }
-
-    return implode(";\n", $pieces);
+    $sql .= 'UPDATE {'. $table .'} SET '. implode(', ', $placeholders) .' WHERE '. implode(' AND ', $pieces);
+    
+    return $sql;
   }
 
   /**
@@ -508,7 +516,7 @@ class SQLReplaceAnalyzer extends SQLAnalyzer implements QueryAnalyzerInterface {
    */
   public function masktype() {
     // TODO Auto-generated method stub
-    return Query::INSERT;
+    return Query::UNIQUEINSERT;
   }
 
   /**
