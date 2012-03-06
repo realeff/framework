@@ -1025,7 +1025,7 @@ class UniqueInsertQuery extends Query {
    * @see Query::name()
    */
   public function name() {
-    return 'unique insert';
+    return 'uniqueinsert';
   }
   
   /**
@@ -2037,7 +2037,7 @@ class MultiSelectQuery extends SelectQuery implements MultiSelectQueryInterface 
    * @see Query::name()
    */
   public function name() {
-    return 'multi select';
+    return 'multiselect';
   }
   
   /**
