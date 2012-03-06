@@ -932,13 +932,13 @@ class StoreQuerier {
    *
    * @return ReplaceQuery
    */
-  final public function insert_update($table) {
-    if (!isset($this->query)) {
-      $this->query = new ReplaceQuery($table, $this->parameter);
-    }
+//   final public function insert_update($table) {
+//     if (!isset($this->query)) {
+//       $this->query = new ReplaceQuery($table, $this->parameter);
+//     }
     
-    return $this->query;
-  }
+//     return $this->query;
+//   }
   
   /**
    * 

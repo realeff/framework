@@ -35,6 +35,11 @@ abstract class Query {
   const MULTISELECT = 0x010;
   
   /**
+   * 替换
+   */
+  const REPLACE = 0x020;
+  
+  /**
    * 标识符
    * 
    * @var string
@@ -956,10 +961,164 @@ class InsertQuery extends Query {
   }
 }
 
-class ReplaceQuery extends InsertQuery {
+/**
+ * 替换插入查询
+ * 
+ * @author realeff
+ *
+ */
+class ReplaceQuery extends Query {
+  
+  /**
+   * 数据关键字段值
+   * 
+   * @var array
+   */
+  protected $keys = array();
+  
+  /**
+   * 数据字段值
+   * 
+   * @var array
+   */
+  protected $fields = array();
+  
+  /**
+   * 默认数据
+   * 
+   * @var array
+   */
+  protected $defaults = array();
+  
   
   public function __toString() {
     return 'replace';
+  }
+
+  /**
+   * (non-PHPdoc)
+   * @see InsertQuery::type()
+   */
+  public function type() {
+    // TODO Auto-generated method stub
+    return Query::REPLACE;
+  }
+  
+  /**
+   * 数据主键或唯一键值
+   * 
+   * @param string $field
+   * @param mixed $value
+   * 
+   * @return ReplaceQuery
+   */
+  public function key($field, $value) {
+    $this->keys[$field] = $field;
+    $this->parameter[$field] = $value;
+    
+    return $this;
+  }
+  
+  /**
+   * 数据主键或唯一键值集
+   * 
+   * @param array $fields
+   * @param array $values
+   * 
+   * @return ReplaceQuery
+   */
+  public function keys(array $fields, array $values = array()) {
+    if ($values) {
+      $fields = array_combine($fields, $values);
+    }
+    
+    foreach ($fields as $field => $value) {
+      $this->keys[$field] = $field;
+      $this->parameter[$field] = $value;
+    }
+    
+    return $this;
+  }
+  
+  /**
+   * 获取关键字段数据
+   * 
+   * @return array
+   */
+  public function &getKeys() {
+    return $this->keys;
+  }
+  
+  /**
+   * 增加一个字段数据
+   * 
+   * @param string $field
+   * @param mixed $value
+   * 
+   * @return ReplaceQuery
+   */
+  public function field($field, $value) {
+    $this->fields[$field] = $field;
+    $this->parameter[$field] = $value;
+    
+    return $this;
+  }
+  
+  /**
+   * 增加一组字段数据
+   * 
+   * @param array $fields
+   * @param array $values
+   * 
+   * @return ReplaceQuery
+   */
+  public function fields(array $fields, array $values = array()) {
+    if ($values) {
+      $fields = array_combine($fields, $values);
+    }
+    
+    foreach ($fields as $field => $value) {
+      $this->fields[$field] = $field;
+      $this->parameter[$field] = $value;
+    }
+    
+    return $this;
+  }
+  
+  /**
+   * 获取字段数据
+   * 
+   * @return array
+   */
+  public function &getFields() {
+    return $this->fields;
+  }
+  
+  /**
+   * 使用默认字段值
+   *
+   * @param array $defaultValues
+   */
+  public function useDefaults(array $defaultValues) {
+    foreach ($defaultValues as $field => $value) {
+      if (!isset($this->fields[$field])) {
+        $this->fields[$field] = $field;
+        $this->parameter[$field] = $value;
+      }
+    }
+  
+    $this->defaults = $defaultValues;
+  }
+
+  /**
+   * (non-PHPdoc)
+   * @see InsertQuery::end()
+   */
+  public function end() {
+    // TODO Auto-generated method stub
+    $this->end = TRUE;
+    
+    return $this;
   }
   
 }
@@ -1049,7 +1208,11 @@ class UpdateQuery extends Query {
    *   
    * @return UpdateQuery
    */
-  public function fields(array $fields) {
+  public function fields(array $fields, array $values = array()) {
+    if ($values) {
+      $fields = array_combine($fields, $values);
+    }
+    
     foreach ($fields as $field => $value) {
       $this->fields[$field] = $field;
       $this->parameter[$field] = $value;
