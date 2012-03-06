@@ -81,7 +81,7 @@ class StoreStatementDatabase_mysql extends StoreStatementBase {
   public function freeResult() {
     // TODO Auto-generated method stub
     if ($this->result) {
-      mysql_free_result($this->result);
+      return mysql_free_result($this->result);
     }
   }
   
