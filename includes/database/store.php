@@ -956,7 +956,8 @@ class StoreQuerier {
       }
       
       $identifier = $this->connection->driver() .':'. $this->name;
-      $identifier .= ' '. (string)$query .'-'. implode('-', $this->filters);
+      $identifier .= ' '. $query->name();
+      $identifier .= ' '. $query->getTable() .'-'. implode('-', $this->filters);
       $query->setIdentifier($identifier);
       $query->end();
       
