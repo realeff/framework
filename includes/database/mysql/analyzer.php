@@ -10,29 +10,32 @@ class SQLInsertAnalyzer_mysql extends SQLInsertAnalyzer {
    */
   protected function queryString() {
     // TODO Auto-generated method stub
-    if (!empty($this->queryFrom)) {
-      return 'INSERT INTO {'. $this->table .'} ('. implode(', ', $this->fields) .') '. $this->fromSQLAnalyzer();
+    if (!($this->query instanceof InsertQuery)) {
+      return NULL;
     }
     
-    $fields = $this->fields;
-    foreach ($this->defaults as $field => $value) {
-      !isset($fields[$field]) && ($fields[$field] = $field);
-    }
-    
+    $table = self::escapeName($this->query->getTable());
+    $fields = $this->query->getFields();
     foreach ($fields as $key => $field) {
       $fields[$key] = self::escapeName($field);
     }
     
-    $values = array();
-    foreach ($this->values as $values) {
+    $query = $this->query->select();
+    if (!empty($query)) {
+      return 'INSERT INTO {'. $table .'} ('. implode(', ', $fields) .') '. $this->queryAnalyzer($query);
+    }
+    
+    $pieces = array();
+    foreach ($this->query->getValues() as $values) {
       $placeholders = array();
       foreach ($fields as $field) {
         $placeholders[] = $values[$field];
       }
-      $values[] = '(:' . implode(', :', $placeholders) . ')';
+      
+      $pieces[] = '(:' . implode(', :', $placeholders) . ')';
     }
     
-    return 'INSERT INTO {'. $this->table .'} ('. implode(', ', $fields) .') VALUES ' . implode(', ', $values);
+    return 'INSERT INTO {'. $table .'} ('. implode(', ', $fields) .') VALUES ' . implode(', ', $pieces);
   }
   
 }
