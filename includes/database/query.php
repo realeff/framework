@@ -85,10 +85,19 @@ abstract class Query {
     $this->parameter = $parameter;
   }
   
+  public function __toString() {
+    return $this->getName();
+  }
+  
   /**
    * 查询器类型
    */
   abstract public function type();
+  
+  /**
+   * 查询器名称
+   */
+  abstract public function getName();
   
   /**
    * 获取数据表名
@@ -800,10 +809,6 @@ class InsertQuery extends Query {
    * @var SelectQuery
    */
   protected $queryFrom;
-
-  public function __toString() {
-    return 'insert';
-  }
   
   /**
    * (non-PHPdoc)
@@ -812,6 +817,14 @@ class InsertQuery extends Query {
   public function type() {
     // TODO Auto-generated method stub
     return Query::INSERT;
+  }
+
+  /**
+   * (non-PHPdoc)
+   * @see Query::getName()
+   */
+  public function getName() {
+    return 'insert';
   }
   
   /**
@@ -997,10 +1010,6 @@ class UniqueInsertQuery extends Query {
    */
   protected $arguments = array();
   
-  
-  public function __toString() {
-    return 'unique insert';
-  }
 
   /**
    * (non-PHPdoc)
@@ -1009,6 +1018,14 @@ class UniqueInsertQuery extends Query {
   public function type() {
     // TODO Auto-generated method stub
     return Query::UNIQUEINSERT;
+  }
+  
+  /**
+   * (non-PHPdoc)
+   * @see Query::getName()
+   */
+  public function getName() {
+    return 'unique insert';
   }
   
   /**
@@ -1282,10 +1299,6 @@ class UpdateQuery extends Query {
     $this->condition = new QueryCondition($this->parameter, $this);
   }
   
-  public function __toString() {
-    return 'update';
-  }
-  
   /**
    * (non-PHPdoc)
    * @see Query::masktype()
@@ -1293,6 +1306,14 @@ class UpdateQuery extends Query {
   public function type() {
     // TODO Auto-generated method stub
     return Query::UPDATE;
+  }
+  
+  /**
+   * (non-PHPdoc)
+   * @see Query::getName()
+   */
+  public function getName() {
+    return 'update';
   }
   
   /**
@@ -1428,10 +1449,6 @@ class DeleteQuery extends Query {
     $this->condition = new QueryCondition($this->parameter, $this);
   }
   
-  public function __toString() {
-    return 'delete';
-  }
-  
   /**
    * (non-PHPdoc)
    * @see Query::masktype()
@@ -1439,6 +1456,14 @@ class DeleteQuery extends Query {
   public function type() {
     // TODO Auto-generated method stub
     return Query::DELETE;
+  }
+  
+  /**
+   * (non-PHPdoc)
+   * @see Query::getName()
+   */
+  public function getName() {
+    return 'delete';
   }
 
 /**
@@ -1696,10 +1721,6 @@ class SelectQuery extends Query {
     $this->having = new QueryCondition($this->parameter, $this);
   }
   
-  public function __toString() {
-    return 'select';
-  }
-  
   /**
    * (non-PHPdoc)
    * @see Query::masktype()
@@ -1707,6 +1728,14 @@ class SelectQuery extends Query {
   public function type() {
     // TODO Auto-generated method stub
     return Query::SELECT;
+  }
+  
+  /**
+   * (non-PHPdoc)
+   * @see Query::getName()
+   */
+  public function getName() {
+    return 'select';
   }
   
   
@@ -1994,10 +2023,6 @@ class MultiSelectQuery extends SelectQuery implements MultiSelectQueryInterface 
     $this->table_alias = $alias;
   }
   
-  public function __toString() {
-    return 'multi select';
-  }
-  
   /**
    * (non-PHPdoc)
    * @see Query::masktype()
@@ -2005,6 +2030,14 @@ class MultiSelectQuery extends SelectQuery implements MultiSelectQueryInterface 
   public function type() {
     // TODO Auto-generated method stub
     return Query::MULTISELECT;
+  }
+  
+  /**
+   * (non-PHPdoc)
+   * @see Query::getName()
+   */
+  public function getName() {
+    return 'multi select';
   }
   
   /**
