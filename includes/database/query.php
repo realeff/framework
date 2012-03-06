@@ -86,7 +86,7 @@ abstract class Query {
   }
   
   public function __toString() {
-    return $this->getName();
+    return $this->name();
   }
   
   /**
@@ -97,7 +97,7 @@ abstract class Query {
   /**
    * 查询器名称
    */
-  abstract public function getName();
+  abstract public function name();
   
   /**
    * 获取数据表名
@@ -821,9 +821,9 @@ class InsertQuery extends Query {
 
   /**
    * (non-PHPdoc)
-   * @see Query::getName()
+   * @see Query::name()
    */
-  public function getName() {
+  public function name() {
     return 'insert';
   }
   
@@ -1022,9 +1022,9 @@ class UniqueInsertQuery extends Query {
   
   /**
    * (non-PHPdoc)
-   * @see Query::getName()
+   * @see Query::name()
    */
-  public function getName() {
+  public function name() {
     return 'unique insert';
   }
   
@@ -1310,9 +1310,9 @@ class UpdateQuery extends Query {
   
   /**
    * (non-PHPdoc)
-   * @see Query::getName()
+   * @see Query::name()
    */
-  public function getName() {
+  public function name() {
     return 'update';
   }
   
@@ -1460,9 +1460,9 @@ class DeleteQuery extends Query {
   
   /**
    * (non-PHPdoc)
-   * @see Query::getName()
+   * @see Query::name()
    */
-  public function getName() {
+  public function name() {
     return 'delete';
   }
 
@@ -1732,9 +1732,9 @@ class SelectQuery extends Query {
   
   /**
    * (non-PHPdoc)
-   * @see Query::getName()
+   * @see Query::name()
    */
-  public function getName() {
+  public function name() {
     return 'select';
   }
   
@@ -2034,9 +2034,9 @@ class MultiSelectQuery extends SelectQuery implements MultiSelectQueryInterface 
   
   /**
    * (non-PHPdoc)
-   * @see Query::getName()
+   * @see Query::name()
    */
-  public function getName() {
+  public function name() {
     return 'multi select';
   }
   
