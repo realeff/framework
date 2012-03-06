@@ -335,13 +335,13 @@ class SQLInsertAnalyzer extends SQLAnalyzer implements QueryAnalyzerInterface {
     }
     
     $pieces = array();
-    foreach ($this->values as $values) {
+    foreach ($this->query->getValues() as $values) {
       $placeholders = array();
       foreach ($fields as $field) {
         $placeholders[] = $values[$field];
       }
       
-      $pieces[] = 'INSERT INTO {'. $table .'} ('. implode(', ', $fields) .') VALUES (:' . implode(', :', $values) . ')';
+      $pieces[] = 'INSERT INTO {'. $table .'} ('. implode(', ', $fields) .') VALUES (:' . implode(', :', $placeholders) . ')';
     }
     
     return implode(";\n", $pieces);
@@ -447,6 +447,88 @@ class SQLUpdateAnalyzer extends SQLAnalyzer implements QueryAnalyzerInterface {
     $this->query = $query;
   }
   
+}
+
+
+/**
+ * 替换插入数据SQL分析器
+ *
+ * @author realeff
+ *
+ */
+class SQLReplaceAnalyzer extends SQLAnalyzer implements QueryAnalyzerInterface {
+
+  /**
+   * 
+   * @var ReplaceQuery
+   */
+  protected $query;
+  
+  /**
+   * (non-PHPdoc)
+   * @see SQLAnalyzer::queryString()
+   */
+  protected function queryString() {
+    // TODO Auto-generated method stub
+    if (!($this->query instanceof ReplaceQuery)) {
+      return NULL;
+    }
+
+    $table = self::escapeName($this->query->getTable());
+    $keys = $this->query->getKeys();
+    // 查询数据，如果数据已经有则更新数据，否则插入数据。
+    return;
+    
+    $fields = $this->query->getFields();
+    foreach ($fields as $key => $field) {
+      $fields[$key] = self::escapeName($field);
+    }
+
+    $query = $this->query->select();
+    if (!empty($query)) {
+      return 'INSERT INTO {'. $table .'} ('. implode(', ', $fields) .') '. $this->queryAnalyzer($query);
+    }
+
+    $pieces = array();
+    foreach ($this->values as $values) {
+      $placeholders = array();
+      foreach ($fields as $field) {
+        $placeholders[] = $values[$field];
+      }
+
+      $pieces[] = 'INSERT INTO {'. $table .'} ('. implode(', ', $fields) .') VALUES (:' . implode(', :', $values) . ')';
+    }
+
+    return implode(";\n", $pieces);
+  }
+
+  /**
+   * (non-PHPdoc)
+   * @see QueryAnalyzerInterface::masktype()
+   */
+  public function masktype() {
+    // TODO Auto-generated method stub
+    return Query::INSERT;
+  }
+
+  /**
+   * (non-PHPdoc)
+   * @see QueryAnalyzerInterface::clean()
+   */
+  public function clean() {
+    // TODO Auto-generated method stub
+    $this->query = NULL;
+  }
+
+  /**
+   * (non-PHPdoc)
+   * @see QueryAnalyzerInterface::setQuery()
+   */
+  public function setQuery(Query $query) {
+    // TODO Auto-generated method stub
+    $this->query = $query;
+  }
+
 }
 
 class SQLDeleteAnalyzer extends SQLAnalyzer implements QueryAnalyzerInterface {
