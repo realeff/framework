@@ -570,7 +570,7 @@ class SQLDeleteAnalyzer extends SQLAnalyzer implements QueryAnalyzerInterface {
     $table = self::escapeName($this->query->getTable());
     $condition = $this->query->where();
     
-    $sql = 'DELETE FROM {'. $table .'} ';
+    $sql = 'DELETE FROM {'. $table .'}';
     if (count($condition) > 0) {
       $sql .= ' WHERE '. $this->conditionAnalyzer($condition);
     }
