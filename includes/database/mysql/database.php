@@ -79,6 +79,7 @@ class StoreDatabase_mysql extends StoreDatabase  {
     $this->registerAnalyzer(new SQLInsertAnalyzer_mysql());
     $this->registerAnalyzer(new SQLUpdateAnalyzer());
     $this->registerAnalyzer(new SQLDeleteAnalyzer());
+    $this->registerAnalyzer(new SQLUniqueInsertAnalyzer_mysql());
   }
   
   /**
