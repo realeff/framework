@@ -34,19 +34,28 @@ define('REALEFF_BOOTSTRAP_FIREWALL', 0x7); // 0x001 + 0x002 + 0x004
 
 define('REALEFF_BOOTSTRAP_REQUEST', 0xB); // 0x001 + 0x002 + 0x008
 
-define('REALEFF_BOOTSTRAP_STORAGE', 0x13); // 0x001 + 0x002 + 0x010
+define('REALEFF_BOOTSTRAP_DATABASE', 0x13); // 0x001 + 0x002 + 0x010
 
-define('REALEFF_BOOTSTRAP_SESSION', 0x21); // 0x001 + 0x020
+define('REALEFF_BOOTSTRAP_CACHE', 0x23); // 0x001 + 0x002 + 0x020
 
-define('REALEFF_BOOTSTRAP_VARIABLE', 0x43); // 0x001 + 0x002 + 0x040
+define('REALEFF_BOOTSTRAP_SESSION', 0x41); // 0x001 + 0x040
 
-define('REALEFF_BOOTSTRAP_LANGUAGE', 0x83); // 0x001 + 0x002 + 0x080
+define('REALEFF_BOOTSTRAP_VARIABLE', 0xA3); // 0x001 + 0x002 + 0x20 + 0x080
 
-define('REALEFF_BOOTSTRAP_PAGE_HEADER', 0x101); // 0x001 + 0x100
+define('REALEFF_BOOTSTRAP_LANGUAGE', 0x103); // 0x001 + 0x002 + 0x100
 
-define('REALEFF_BOOTSTRAP_FINISH', 0x3FE); // 0x001 + 0x002 + 0x010 + 0x020 + 0x040 + 0x080 + 0x100 + 0x200
+define('REALEFF_BOOTSTRAP_PAGE_HEADER', 0x201); // 0x001 + 0x200
+
+define('REALEFF_BOOTSTRAP_FINISH', 0x7FE); // 0x001 + 0x002 + 0x010 + 0x020 + 0x040 + 0x080 + 0x100 + 0x200 + 0x400
 
 define('REALEFF_BOOTSTRAP_FULL', 0xFFF); // 0xFFFF
+
+
+define('REALEFF_QUERIER_SYSTEM', 'system');
+define('REALEFF_QUERIER_VARIBLE', 'varible');
+define('REALEFF_QUERIER_LOCK', 'lock');
+define('REALEFF_QUERIER_CACHE', 'cache');
+
 
 /**
  * 启动指定名称的计时器,如果你开始和停止多次计时，测量时间间隔会积累起来。
@@ -296,7 +305,9 @@ global $multisites;
  * 引导程序初始化RealEff站点设置
  */
 function _realeff_setting_initialize() {
-global $databases, $dataquerier, $config, $cookie_domain, $auth_key;
+global $databases, $dataquerier, $setting, $cookie_domain, $auth_key;
+
+  $setting = array();
 
   // 如果站点工作目录下建立了settings.php配置文件，则加载此文件。
   if (file_exists($_ENV['workspace'] .'/settings.php')) {
@@ -377,6 +388,9 @@ global $library_dir, $extension_dir;
   // 初始化站点设置
   _realeff_setting_initialize();
   
+  // 加载Realeff系统config缓存数据
+  $config += realeff_data_load('config');
+  
   // 处理多站点cookie共享问题，区分https模式，防止cookie泄漏。
   if ($cookie_domain) {
     $session_name = $cookie_domain;
@@ -407,9 +421,152 @@ global $library_dir, $extension_dir;
 }
 
 /**
- * 启动Realeff系统防火墙
+ * 获取或更新系统配置数据
+ * 
+ * @param string $name 名称
+ * @param mixed $data 准备的默认数据或是需要更新的数据
+ * @param boolean $update 是否更新数据
+ * 
+ * @return mixed
+ *   返回系统配置数据
+ */
+function realeff_config($name, $data = NULL, $update = FALSE) {
+global $config;
+  
+  if ($update) {
+    if (isset($data)) {
+      $config[$name] = $data;
+    }
+    else {
+      unset($config[$name]);
+    }
+    
+    realeff_data_save('config', $config);
+  }
+  
+  return isset($config[$name]) ? $config[$name] : $data;
+}
+
+/**
+ * 加载持久变量表
+ */
+function variable_initialize(array $setting) {
+  // 如果数据库可用，则使用数据库，否则使用数据文件
+  if (!$variables = cache_get('varible', 'cache')) {
+    if (function_exists('store_getquerier')) {
+      $store = store_getquerier(REALEFF_QUERIER_VARIBLE);
+      $store->select('setting')
+            ->field('name')->field('value')
+            ->end();
+      $stmt = $store->query();
+      
+      $variables = array();
+      while ($variable = $stmt->fetchObject()) {
+        $variables[$variable->name] = unserialize($variable->value);
+      }
+    }
+    else {
+      $variables = realeff_data_load('setting');
+    }
+  }
+  
+  foreach ($setting as $key => $value) {
+    $variables[$key] = $value;
+  }
+  
+  return $variables;
+}
+
+/**
+ * 获取一个持久变量
+ * 
+ * @param string $name 变量名
+ * @param mixed $default 缺省值
+ * 
+ * @return mixed
+ *   返回这个变量的值
+ */
+function variable_get($name, $default = NULL) {
+global $setting;
+
+  return isset($setting[$name]) ? $setting[$name] : $default;
+}
+
+/**
+ * 设置一个持久变量
+ * 
+ * @param string $name 变量名
+ * @param mixed $value 设置变量值
+ */
+function variable_set($name, $value) {
+global $setting;
+  
+  if (function_exists('store_getquerier')) {
+    $store = store_getquerier(REALEFF_QUERIER_VARIBLE);
+    $store->insert_unique('setting')
+          ->key('name', $name)
+          ->field('value', serialize($value))
+          ->end();
+    $store->execute();
+    
+    // 清除缓存数据
+    cache_clear_all('varible', 'cache');
+    
+    $setting[$name] = $value;
+  }
+  else {
+    $setting[$name] = $value;
+    realeff_data_save('setting', $setting);
+  }
+}
+
+/**
+ * 删除一个持久变量
+ * 
+ * @param string $name 变量名
+ */
+function variable_del($name) {
+global $setting;
+  
+  if (function_exists('store_getquerier')) {
+    $store = store_getquerier(REALEFF_QUERIER_VARIBLE);
+    $store->delete('setting')
+          ->where()->compare('name', $name)->end()
+          ->end();
+    $store->execute();
+    
+    // 清除缓存数据
+    cache_clear_all('varible', 'cache');
+    
+    unset($setting[$name]);
+  }
+  else {
+    unset($setting[$name]);
+    realeff_data_save('setting', $setting);
+  }
+}
+
+
+function realeff_block_denied($ip) {
+  
+}
+
+/**
+ * 启动Realeff系统安全检查
  */
 function _realeff_bootstrap_firewall() {
+
+  // 检查客户端IP访问限制
+  
+  // 检查恶意访问攻击
+  if (defined('BLOCK_ATTACK')) {
+    ;
+  }
+  
+  // 禁止机器人访问
+  if (defined('DISABLE_ROBOT')) {
+    // 检查机器人访问(robot)
+  }
   
 }
 
@@ -417,17 +574,6 @@ function _realeff_bootstrap_firewall() {
  * 引导程序检查客户端请求及数据
  */
 function _realeff_bootstrap_request() {
-
-  // 检查客户端IP访问限制
-  //realeff_block_denied
-  //realeff_is_denied
-  
-  // 检查恶意访问攻击
-  
-  // 禁止机器人访问
-  if (defined('DISABLE_ROBOT')) {
-    // 检查机器人访问(robot)
-  }
   
   // 支持移动设备访问
   if (defined('ENABLE_MOBILE')) {
@@ -454,15 +600,27 @@ function _realeff_bootstrap_request() {
 }
 
 /**
- * 引导程序加载数据存储器
+ * 引导程序加载数据库
  */
-function _realeff_bootstrap_storage() {
+function _realeff_bootstrap_database() {
+global $databases;
+
+  include_once REALEFF_ROOT .'/includes/database/store.php';
   
   // 检查数据库是否配置，如果没有配置，则引导安装程序。
   if (empty($databases)) {
     // install.php执行安装程序
   }
-  ;
+  else {
+    store_switchsystem();
+    store_ping();
+    // 注册查询器名称
+  }
+}
+
+function _realeff_bootstrap_cache() {
+  include_once REALEFF_ROOT .'/includes/cache/cache.php';
+  
 }
 
 /**
@@ -476,7 +634,9 @@ function _realeff_session_initialize() {
  * 初始化Realeff系统变量
  */
 function _realeff_variable_initialize() {
-  
+global $setting;
+
+  $setting = variable_initialize($setting);
 }
 
 /**
@@ -505,13 +665,15 @@ function _realeff_bootstrap_finish() {
  */
 function realeff_bootstrap($service) {
   static $stored_bootstrap = REALEFF_BOOTSTRAP_FULL;
+  
   $bootstrap = 0x001;
+  $service &= $stored_bootstrap;
 
   // 启动引导程序计时器
   timer_start('bootstrap');
   
   while ($service > $bootstrap) {
-    if (!($stored_bootstrap & $service & $bootstrap)) {
+    if (!($service & $bootstrap)) {
       $bootstrap <<= 1;
       continue;
     }
@@ -529,35 +691,42 @@ function realeff_bootstrap($service) {
         break;
     
       case 0x004:
+        // 启动系统简单防卫
         _realeff_bootstrap_firewall();
         break;
     
       case 0x008:
+        // 检查客户端请求数据
         _realeff_bootstrap_request();
         break;
     
       case 0x010:
-        // 初始化数据库（访问介质有数据库、文件、内存、第三方数据），实始化缓存系统
-        _realeff_bootstrap_storage();
+        // 初始化数据库（访问介质有数据库、文件、内存、第三方数据）
+        _realeff_bootstrap_database();
         break;
-    
+      
       case 0x020:
-        _realeff_session_initialize();
+        // 启动系统缓存机制
+        _realeff_bootstrap_cache();
         break;
     
       case 0x040:
-        _realeff_variable_initialize();
+        _realeff_session_initialize();
         break;
     
       case 0x080:
-        _realeff_language_initialize();
+        _realeff_variable_initialize();
         break;
     
       case 0x100:
-        _realeff_bootstrap_page_header();
+        _realeff_language_initialize();
         break;
     
       case 0x200:
+        _realeff_bootstrap_page_header();
+        break;
+    
+      case 0x400:
         _realeff_bootstrap_finish();
         break;
     }
@@ -596,14 +765,45 @@ function _realeff_exception_handler($exception) {
 }
 
 /**
- * 读取系统php缓存数据
+ * 获取系统数据文件名称
  * 
  * @param string $name 数据名
+ * @param string $type 数据类型
+ * 
+ * @return string
+ */
+function _realeff_data_filename($name, $type = NULL) {
+  if (isset($type)) {
+    return REALEFF_ROOT ."/data/{$type}/{$name}.php";
+  }
+  
+  return REALEFF_ROOT ."/data/{$name}.php";
+}
+
+/**
+ * 清空Realeff系统缓存文件数据
+ * 
+ * @param string $type 数据类型
+ * 
+ * @return boolean
+ *   清除php缓存数据成功返回TRUE，失败返回FALSE。
+ */
+function _realeff_data_file_clear($type = 'cache') {
+  $filemask = REALEFF_ROOT ."/data/{$type}/*.php";
+  
+  return array_map( "unlink", glob($filemask));
+}
+
+/**
+ * 读取系统数据
+ * 
+ * @param string $name 数据名
+ * @param string $type 数据类型
  * 
  * @return array
  */
-function _realeff_read_phpdata($name) {
-  $filename = REALEFF_ROOT ."/cache/{$name}.php";
+function realeff_data_load($name, $type = NULL) {
+  $filename = _realeff_data_filename($name, $type);
   
   $data = array();
   if (file_exists($filename)) {
@@ -618,27 +818,15 @@ function _realeff_read_phpdata($name) {
 }
 
 /**
- * 写入系统php缓存数据
+ * 写入系统数据
  * 
  * @param string $name 数据名
- * @param mixed $data 存储的数据
+ * @param array $data 存储的数据
  */
-function _realeff_write_phpdata($name, $data) {
-  $filename = REALEFF_ROOT ."/cache/{$name}.php";
+function realeff_data_save($name, array $data, $type = NULL) {
+  $filename = _realeff_data_filename($name, $type);
   
   file_put_contents($filename, '<?php return ' . var_export($data, true) . ';', LOCK_EX);
-}
-
-/**
- * 清空系统php缓存数据
- * 
- * @return boolean
- *   清除php缓存数据成功返回TRUE，失败返回FALSE。
- */
-function _realeff_clear_phpdata() {
-  $filemask = REALEFF_ROOT .'/cache/*.php';
-  
-  return array_map( "unlink", glob($filemask));
 }
 
 /**
@@ -656,7 +844,7 @@ global $library_dir;
   
   $libraries =& realeff_static(__FUNCTION__);
   if (!isset($libraries)) {
-    $libraries = _realeff_read_phpdata(__FUNCTION__);
+    $libraries = realeff_data_load('library_file', 'cache');
   }
   
   if (isset($libraries[$library])) {
@@ -702,7 +890,7 @@ global $library_dir;
       }
     }
     
-    _realeff_write_phpdata(__FUNCTION__, $libraries);
+    realeff_data_save('library_file', $libraries, 'cache');
   }
 }
 
@@ -737,28 +925,22 @@ function ip_address() {
 
   if (!isset($ip_address)) {
     $ip_address = $_SERVER['REMOTE_ADDR'];
-
-    if (variable_get('reverse_proxy', 0)) {
-      $reverse_proxy_header = variable_get('reverse_proxy_header', 'HTTP_X_FORWARDED_FOR');
-      if (!empty($_SERVER[$reverse_proxy_header])) {
-        // If an array of known reverse proxy IPs is provided, then trust
-        // the XFF header if request really comes from one of them.
-        $reverse_proxy_addresses = variable_get('reverse_proxy_addresses', array());
-
-        // Turn XFF header into an array.
-        $forwarded = explode(',', $_SERVER[$reverse_proxy_header]);
-
-        // Trim the forwarded IPs; they may have been delimited by commas and spaces.
-        $forwarded = array_map('trim', $forwarded);
-
-        // Tack direct client IP onto end of forwarded array.
-        $forwarded[] = $ip_address;
-
-        // Eliminate all trusted IPs.
-        $untrusted = array_diff($forwarded, $reverse_proxy_addresses);
-
-        // The right-most IP is the most specific we can trust.
-        $ip_address = array_pop($untrusted);
+    
+    if (isset($_SERVER['HTTP_CLIENT_IP']) && preg_match('/^([0-9]{1,3}\.){3}[0-9]{1,3}$/', $_SERVER['HTTP_CLIENT_IP'])) {
+      $ip_address = $_SERVER['HTTP_CLIENT_IP'];
+    }
+    else if(!empty($_SERVER['HTTP_X_FORWARDED_FOR'])) {
+      
+      $forwarded = explode(',', $_SERVER['HTTP_X_FORWARDED_FOR']);
+      
+      // 删除IPs空格，它们可能由“,”和空格组成分隔符。
+      $forwarded = array_map('trim', $forwarded);
+      
+      foreach ($forwarded AS $xip) {
+        if (!preg_match('#^(10|172\.16|192\.168)\.#', $xip)) {
+          $ip_address = $xip;
+          break;
+        }
       }
     }
   }
