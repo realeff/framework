@@ -115,11 +115,20 @@ interface CacheInterface extends Countable {
 
 
 
+
 function cache_get($key, $bin = 'cache') {
   
 }
 
-function cache_set($key, $data, $bin = 'cache', $expire = 0) {
+function cache_get_multi(array $keys, $bin = 'cache') {
+  
+}
+
+function cache_set($key, $data, $lifetime = 0, $bin = 'cache') {
+  
+}
+
+function cache_set_multi(array $items, $lifetime = 0, $bin = 'cache') {
   
 }
 
