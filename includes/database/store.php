@@ -158,7 +158,7 @@ abstract class Store {
     
     // 驱动文件包括
     static $files = array(
-        'Store.php',
+        'database.php',
         'schema.php',
         'statement.php',
         'analyzer.php'
