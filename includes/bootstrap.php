@@ -452,9 +452,9 @@ global $config;
  */
 function variable_initialize(array $setting) {
   // 如果数据库可用，则使用数据库，否则使用数据文件
-  if (!$variables = cache_get('varible', 'cache')) {
-    if (function_exists('store_getquerier')) {
-      $store = store_getquerier(REALEFF_QUERIER_VARIBLE);
+  if (!$variables = cache_get('variable', 'cache')) {
+    if (function_exists('store_get_querier')) {
+      $store = store_get_querier(REALEFF_QUERIER_VARIBLE);
       $store->select('setting')
             ->field('name')->field('value')
             ->end();
@@ -464,6 +464,8 @@ function variable_initialize(array $setting) {
       while ($variable = $stmt->fetchObject()) {
         $variables[$variable->name] = unserialize($variable->value);
       }
+      
+      cache_set('variable', $variables);
     }
     else {
       $variables = realeff_data_load('setting');
@@ -501,8 +503,8 @@ global $setting;
 function variable_set($name, $value) {
 global $setting;
   
-  if (function_exists('store_getquerier')) {
-    $store = store_getquerier(REALEFF_QUERIER_VARIBLE);
+  if (function_exists('store_get_querier')) {
+    $store = store_get_querier(REALEFF_QUERIER_VARIBLE);
     $store->insert_unique('setting')
           ->key('name', $name)
           ->field('value', serialize($value))
@@ -510,7 +512,7 @@ global $setting;
     $store->execute();
     
     // 清除缓存数据
-    cache_clear_all('varible', 'cache');
+    cache_clear_all('variable', 'cache');
     
     $setting[$name] = $value;
   }
@@ -528,15 +530,15 @@ global $setting;
 function variable_del($name) {
 global $setting;
   
-  if (function_exists('store_getquerier')) {
-    $store = store_getquerier(REALEFF_QUERIER_VARIBLE);
+  if (function_exists('store_get_querier')) {
+    $store = store_get_querier(REALEFF_QUERIER_VARIBLE);
     $store->delete('setting')
           ->where()->compare('name', $name)->end()
           ->end();
     $store->execute();
     
     // 清除缓存数据
-    cache_clear_all('varible', 'cache');
+    cache_clear_all('variable', 'cache');
     
     unset($setting[$name]);
   }
@@ -612,7 +614,7 @@ global $databases;
     // install.php执行安装程序
   }
   else {
-    store_switchsystem();
+    store_switch();
     store_ping();
     // 注册查询器名称
   }
