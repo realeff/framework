@@ -795,6 +795,8 @@ class StoreQuerier {
    * 添加查询器过滤名
    * 
    * @param string $name
+   * 
+   * @return StoreQuerier
    */
   final public function addFilter($name) {
     if (count($this->filters) > self::MAX_FILTER_DEPTH) {
@@ -802,10 +804,13 @@ class StoreQuerier {
     }
 
     $this->filters[$name] = $name;
+    return $this;
   }
   
   /**
    * 重新设定存储命令内容
+   * 
+   * @return StoreQuerier
    */
   final public function clear() {
     if (isset($this->query)) {
@@ -814,6 +819,8 @@ class StoreQuerier {
       $this->parameter = new QueryParameter();
     }
     $this->filters = array();
+    
+    return $this;
   }
   
   /**
@@ -956,8 +963,9 @@ class StoreQuerier {
       }
       
       $identifier = $this->connection->driver() .':'. $this->name;
+      $identifier .= '-'. $query->getTable();
       $identifier .= ' '. $query->name();
-      $identifier .= ' '. $query->getTable() .'-'. implode('-', $this->filters);
+      $identifier .= empty($this->filters) ? '' : ' -'. implode('-', $this->filters);
       $query->setIdentifier($identifier);
       $query->end();
       
