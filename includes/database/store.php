@@ -1526,7 +1526,7 @@ abstract class StoreStatementBase implements StoreStatementInterface {
  * 
  * @param string $system
  */
-function store_switchsystem($system = 'realeff') {
+function store_switch($system = 'realeff') {
   return Store::switchSystem($system);
 }
 
@@ -1535,7 +1535,7 @@ function store_switchsystem($system = 'realeff') {
  * 
  * @param string $system
  */
-function store_resetsystem($system = NULL) {
+function store_reset($system = NULL) {
   return Store::resetSystem($system);
 }
 
@@ -1569,7 +1569,7 @@ function store_ping() {
  * 
  * @return StoreQuerier
  */
-function store_getquerier($name) {
+function store_get_querier($name) {
   return Store::getQuerier($name);
 }
 
