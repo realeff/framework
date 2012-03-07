@@ -777,7 +777,7 @@ class SQLSelectAnalyzer extends SQLAnalyzer implements QueryAnalyzerInterface {
     }
     
     $sql = 'SELECT '. ($distinct ? 'DISTINCT ' : '') .implode(', ', $fields) .' FROM '. implode(' ', $tables);
-    $sql .= ' '. implode(' ', $sqls);
+    $sql .= empty($sqls) ? '' : ' '. implode(' ', $sqls);
     
     if ($flag_count) {
       return 'SELECT COUNT(*) AS count FROM ('. $sql .') count_table';
