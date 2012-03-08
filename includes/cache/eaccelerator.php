@@ -1,6 +1,6 @@
 <?php
 
-class MemcacheCache implements CacheInterface {
+class EacceleratorCache implements CacheInterface {
 
 
   public function __construct(array $options = array()) {
