@@ -27,26 +27,32 @@
  *   [WHERE where] [GROUP BY group [HAVING having]] [ORDER BY order [ASC | DESC]] [LIMIT offset, count];
  */
 
+/**
+ * 查询分析器接口
+ * 
+ * @author realeff
+ *
+ */
 interface QueryAnalyzerInterface {
   /**
    * 支持查询分析类型
-   * 
+   *
    * @return string
    */
   public function masktype();
-  
+
   /**
    * 设置查询语句
-   * 
+   *
    * @param Query $query
    */
   public function setQuery(Query $query);
-  
+
   /**
    * 清理查询分析器
    */
   public function clean();
-  
+
 }
 
 /**
