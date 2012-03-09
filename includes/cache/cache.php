@@ -347,7 +347,11 @@ class FileCache implements CacheInterface {
    */
   public function increment($key, $offset = 1) {
     // TODO Auto-generated method stub
+    $value = $this->get($key);
+    $value = is_numeric($value) ? intval($value) + $offset : $offset;
+    $this->set($key, $value);
     
+    return $value;
   }
   
   /**
@@ -356,7 +360,11 @@ class FileCache implements CacheInterface {
    */
   public function decrement($key, $offset = 1) {
     // TODO Auto-generated method stub
+    $value = $this->get($key);
+    $value = is_numeric($value) ? intval($value) - $offset : $offset;
+    $this->set($key, $value);
     
+    return $value;
   }
   
   
