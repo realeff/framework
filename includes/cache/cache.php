@@ -19,7 +19,7 @@ interface CacheInterface {
    *
    * @param array $options
    */
-  public function __construct(array $options = array());
+  public function __construct(array $bin, array $options = array());
 
   /**
    * 获取一个元素数据
@@ -128,15 +128,18 @@ class FileCache implements CacheInterface {
   
   protected $path;
   
-  protected $secret;
+  protected $bin;
   
-  protected $split;
+  protected $secret;
   
   protected $lifetime;
   
   protected $time;
   
-  public function __construct(array $options = array()) {
+  public function __construct(array $bin, array $options = array()) {
+    // 缓存容器
+    $this->bin = $bin;
+    
     // 指定文件缓存目录位置，如果目录位置是{workspace}则表示指定的缓存位置是当前工作空间路径。
     if (!empty($options['path'])) {
       $this->path = str_replace('{workspace}', $_ENV['workspace'], $options['path']);
@@ -146,8 +149,9 @@ class FileCache implements CacheInterface {
       $this->path = $_ENV['workspace'] .'/cache';
     }
     $this->path = $this->check_dir($this->path) ? realpath($this->path) : REALEFF_ROOT .'/data/cache';
+    
+    // 指定数据文件名加密码，如果指定的secret为FALSE或空，则表示缓存的是静态页面内容。
     $this->secret = isset($options['secret']) ? $options['secret'] : substr($GLOBALS['auth_key'], 0, 8);
-    $this->split = isset($options['split']) ? (int)$options['split'] : 0;
     $this->lifetime = isset($options['lifetime']) ? (int)$options['lifetime'] : 0;
     
     $this->time = $_SERVER['REQUEST_TIME'];
@@ -183,14 +187,11 @@ class FileCache implements CacheInterface {
       return FALSE;
     }
     
-    // 将key中含有“-\.”字符转换为目录分隔符DIRECTORY_SEPARATOR，并清理字符 ? “ / \ < > * | : 
-    $key = strtr($key, '/\\.?"\'<>*|: ', '---_________');
+    // 将key中含有“-/\”字符转换为目录分隔符DIRECTORY_SEPARATOR，并清理字符 ? “ / \ < > * | : 
+    $key = strtr($key, '/\\?"\'<>*|: ', '--_________');
     
     $filepath = $this->path;
     $path = strtok($key, '-');
-    if ($this->split > 0) {
-      $path = realeff_partition_table($path, $key, $this->split);
-    }
     while ($path !== FALSE) {
       if ($path) {
         // 检查文件目录
@@ -201,9 +202,29 @@ class FileCache implements CacheInterface {
       
       $path = strtok('-');
     }
-    $filename = $this->secret .'-cache-'. basename($filepath);
     
-    return dirname($filepath) .'/'. md5($filename) .'.php';
+    if (empty($this->secret)) {
+      return $filepath .'.html';
+    }
+    else {
+      $filename = $this->secret .'-cache-'. basename($filepath);
+      
+      return dirname($filepath) .'/'. md5($filename) .'.php';
+    }
+  }
+  
+  protected function getFileMeta($filename) {
+    if (is_file($filename)) {
+      $handle = @fopen($filename, 'rb');
+      $buffer = fread($handle, 256);
+      fclose($handle);
+      
+      if (preg_match('/(.*)\r\n<\\?php die\\("Access Denied"\\); \\?>#xxx#\r\n/', $buffer, $matches)) {
+        return @unserialize($matches[1]);
+      }
+    }
+    
+    return FALSE;
   }
   
   /**
@@ -215,13 +236,11 @@ class FileCache implements CacheInterface {
     if (is_file($filename)) {
       $mtime = filemtime($filename);
       // 取得文件过期时间
-      $handle = @fopen($filename, 'rb');
-      $buffer = fread($handle, 256);
-      fclose($handle);
-      if (preg_match('/(\d+)\r\n<\\?php die\\("Access Denied"\\); \\?>#xxx#/', $buffer, $matches)) {
-        $expire = intval($matches[1]);
+      $expire = 0;
+      if (!empty($this->secret) && ($header = $this->getFileMeta($filename))) {
+        $expire = $header['expire'];
       }
-      else {
+      else if ($this->lifetime > 0) {
         $expire = $mtime + $this->lifetime;
       }
       
@@ -237,7 +256,7 @@ class FileCache implements CacheInterface {
   }
   
   /**
-   * 清理目录中所有的文件或清理目录中所有过期的文件
+   * 清理目录中所有过期的文件或清理目录中所有的文件
    * 
    * @param string $path
    * @param bool $gc
@@ -267,9 +286,12 @@ class FileCache implements CacheInterface {
    */
   public function delete($key) {
     // TODO Auto-generated method stub
-    $filepath = $this->getFilePath($key);
+    $filename = $this->getFilePath($key);
+    if (is_file($filename)) {
+      return @unlink($filename);
+    }
     
-    return @unlink($filepath);
+    return FALSE;
   }
 
   /**
@@ -314,12 +336,14 @@ class FileCache implements CacheInterface {
     if ($this->check_expire($filename)) {
       if (file_exists($filename)) {
         $data = file_get_contents($filename);
-        if ($data) {
+        if ($data && !empty($this->secret)) {
           $data = preg_replace('/.*\r\n<\\?php die\\("Access Denied"\\); \\?>#xxx#\r\n/', '', $data, 1);
+          
+          return @unserialize($data);
         }
+        
+        return $data;
       }
-
-			return @unserialize($data);
     }
     
     return FALSE;
@@ -404,15 +428,19 @@ class FileCache implements CacheInterface {
    */
   public function set($key, $data, $lifetime = 0) {
     // TODO Auto-generated method stub
-    // 写入文件 expire\n\r<?php exit(); ?/>\n\r
-    $header = $lifetime > 0 ? strval($this->time + $lifetime) : '0';
-    $header .= "\r\n<?php die(\"Access Denied\"); ?>#xxx#\r\n";
     
     // 在数据中追加头信息
     $filename = $this->getFilePath($key);
     $handle = @fopen($filename, 'wb');
     if ($handle) {
-      $data = $header .serialize($data);
+      if (!empty($this->secret)) {
+        // 写入文件 expire\r\n<?php die(); ?/>\r\n
+        $header = array();
+        $header['expire'] = $lifetime > 0 ? $this->time + $lifetime : 0;
+        $data = serialize($header) ."\r\n<?php die(\"Access Denied\"); ?>#xxx#\r\n". serialize($data);
+      }
+      
+      @ftruncate($handle, 0);
       $status = @fwrite($handle, $data, strlen($data));
       @fclose($handle);
       
@@ -446,9 +474,42 @@ class FileCache implements CacheInterface {
  */
 class DatabaseCache implements CacheInterface {
   
+  protected $db;
   
-  public function __construct(array $options = array()) {
+  protected $bin;
+  
+  protected $lifetime;
+  
+  protected $time;
+  
+  
+  public function __construct(array $bin, array $options = array()) {
+    $this->bin = $bin;
     
+    $this->db = store_get_querier(isset($options['querier']) ? $options['querier'] : REALEFF_QUERIER_CACHE);
+    
+    $this->lifetime = isset($options['lifetime']) ? (int)$options['lifetime'] : 0;
+    
+    $this->time = $_SERVER['REQUEST_TIME'];
+  }
+  
+  
+  protected function cutBinKey($key) {
+    if (empty($key)) {
+      return FALSE;
+    }
+    
+    // 将key中含有“/\”字符转换为目录分隔符-，并清理字符 ? " ' % * 
+    $key = strtr($key, '/\\?"\'%* ', '--______');
+    $pieces = explode('-', $key, 2);
+    if (empty($pieces)) {
+      $pieces = array('cache', $key);
+    }
+    else if (count($pieces) == 1) {
+      array_unshift($pieces, 'cache');
+    }
+    
+    return $pieces;
   }
 
   /**
@@ -457,7 +518,17 @@ class DatabaseCache implements CacheInterface {
    */
   public function delete($key) {
     // TODO Auto-generated method stub
+    list($bin, $key) = $this->cutBinKey($key);
     
+    if (isset($bin) && isset($key)) {
+      $this->db->clear();
+      $this->db->delete($bin)
+               ->where()->compare('key', $key)->end()
+               ->end();
+      return $this->db->execute();
+    }
+    
+    return FALSE;
   }
 
   /**
@@ -466,7 +537,8 @@ class DatabaseCache implements CacheInterface {
    */
   public function flush() {
     // TODO Auto-generated method stub
-    
+    $this->db->clear();
+    //$this->db->delete($bin);
   }
 
   /**
@@ -540,15 +612,6 @@ class DatabaseCache implements CacheInterface {
     // TODO Auto-generated method stub
     
   }
-
-  /**
-   * (non-PHPdoc)
-   * @see Countable::count()
-   */
-  public function count() {
-    // TODO Auto-generated method stub
-    
-  }
   
 }
 
@@ -582,6 +645,11 @@ function cache_clear_all($key = NULL, $bin = NULL) {
   }
   
   $cache = new FileCache();
-  $clears[$clear_id] = $cache->flush();
+  if (isset($bin) && isset($key)) {
+    $clears[$clear_id] = $cache->delete($key);
+  }
+  else {
+    $clears[$clear_id] = $cache->flush();
+  }
 }
 

@@ -1,10 +1,20 @@
 <?php
 
 class MemcachedCache implements CacheInterface {
-
-
-  public function __construct(array $options = array()) {
-
+  
+  
+  protected $bin;
+  
+  protected $secret;
+  
+  protected $lifetime;
+  
+  protected $time;
+  
+  public function __construct(array $bin, array $options = array()) {
+    // 缓存容器
+    $this->bin = $bin;
+    //检查server选项，如果server数组中有host键名，则server包含一个服务器，否则包含一组服务器。
   }
 
   /**

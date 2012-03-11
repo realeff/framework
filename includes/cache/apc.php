@@ -3,7 +3,17 @@
 class ApcCache implements CacheInterface {
   
   
-  public function __construct(array $options = array()) {
+  protected $bin;
+  
+  protected $secret;
+  
+  protected $lifetime;
+  
+  protected $time;
+  
+  public function __construct(array $bin, array $options = array()) {
+    // 缓存容器
+    $this->bin = $bin;
     
   }
 
