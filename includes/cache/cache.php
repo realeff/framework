@@ -17,7 +17,8 @@ interface CacheInterface {
   /**
    * 构造器
    *
-   * @param array $options
+   * @param array $bin 存储容器，每个存储器允许最多500个容器。
+   * @param array $options 存储参数
    */
   public function __construct(array $bin, array $options = array());
 
@@ -118,27 +119,41 @@ interface CacheInterface {
   public function isEmpty();
 }
 
+
+abstract class AbstractCache {
+  
+  /**
+   * @var array
+   */
+  protected $bin;
+  
+  protected $time;
+  
+  public function __construct(array $bin) {
+    // 缓存容器
+    $this->bin = $bin;
+    
+    $this->time = $_SERVER['REQUEST_TIME'];
+  }
+  
+}
+
 /**
  * 文件缓存
  * 
  * @author realeff
  *
  */
-class FileCache implements CacheInterface {
+class FileCache extends AbstractCache implements CacheInterface {
   
   protected $path;
-  
-  protected $bin;
   
   protected $secret;
   
   protected $lifetime;
   
-  protected $time;
-  
   public function __construct(array $bin, array $options = array()) {
-    // 缓存容器
-    $this->bin = $bin;
+    parent::__construct($bin);
     
     // 指定文件缓存目录位置，如果目录位置是{workspace}则表示指定的缓存位置是当前工作空间路径。
     if (!empty($options['path'])) {
@@ -153,8 +168,6 @@ class FileCache implements CacheInterface {
     // 指定数据文件名加密码，如果指定的secret为FALSE或空，则表示缓存的是静态页面内容。
     $this->secret = isset($options['secret']) ? $options['secret'] : substr($GLOBALS['auth_key'], 0, 8);
     $this->lifetime = isset($options['lifetime']) ? (int)$options['lifetime'] : 0;
-    
-    $this->time = $_SERVER['REQUEST_TIME'];
   }
   
   protected function check_dir(&$dir) {
@@ -192,6 +205,10 @@ class FileCache implements CacheInterface {
     
     $filepath = $this->path;
     $path = strtok($key, '-');
+    if (!in_array($path, $this->bin)) {
+      $path = reset($this->bin);
+    }
+    
     while ($path !== FALSE) {
       if ($path) {
         // 检查文件目录
@@ -300,14 +317,19 @@ class FileCache implements CacheInterface {
    */
   public function flush() {
     // TODO Auto-generated method stub
+    $status = FALSE;
     
-    if (is_writable($this->path)) {
-      $this->clear_dir($this->path, FALSE);
+    foreach ($this->bin as $bin) {
+      $path = $this->path .'/'. $bin;
       
-      return TRUE;
+      if (is_writable($path)) {
+        $this->clear_dir($path, FALSE);
+        
+        $status = TRUE;
+      }
     }
     
-    return FALSE;
+    return $status;
   }
 
   /**
@@ -316,14 +338,19 @@ class FileCache implements CacheInterface {
    */
   public function gc() {
     // TODO Auto-generated method stub
+    $status = FALSE;
     
-    if (is_writable($this->path)) {
-      $this->clear_dir($this->path, TRUE);
+    foreach ($this->bin as $bin) {
+      $path = $this->path .'/'. $bin;
       
-      return TRUE;
+      if (is_writable($path)) {
+        $this->clear_dir($path, TRUE);
+        
+        $status = TRUE;
+      }
     }
     
-    return FALSE;
+    return $status;
   }
 
   /**
@@ -373,9 +400,8 @@ class FileCache implements CacheInterface {
     // TODO Auto-generated method stub
     $value = $this->get($key);
     $value = is_numeric($value) ? intval($value) + $offset : $offset;
-    $this->set($key, $value);
     
-    return $value;
+    return $this->set($key, $value) ? $value : FALSE;
   }
   
   /**
@@ -386,9 +412,8 @@ class FileCache implements CacheInterface {
     // TODO Auto-generated method stub
     $value = $this->get($key);
     $value = is_numeric($value) ? intval($value) - $offset : $offset;
-    $this->set($key, $value);
     
-    return $value;
+    return $this->set($key, $value) ? $value : FALSE;
   }
   
   
@@ -419,7 +444,13 @@ class FileCache implements CacheInterface {
    */
   public function isEmpty() {
     // TODO Auto-generated method stub
-    return $this->_is_empty_dir($this->path);
+    foreach ($this->bin as $bin) {
+      if (!$this->_is_empty_dir($this->path .'/'. $bin)) {
+        return FALSE;
+      };
+    }
+    
+    return TRUE;
   }
 
   /**
@@ -472,25 +503,19 @@ class FileCache implements CacheInterface {
  * @author realeff
  *
  */
-class DatabaseCache implements CacheInterface {
+class DatabaseCache extends AbstractCache implements CacheInterface {
   
   protected $db;
   
-  protected $bin;
-  
   protected $lifetime;
-  
-  protected $time;
   
   
   public function __construct(array $bin, array $options = array()) {
-    $this->bin = $bin;
+    parent::__construct($bin);
     
     $this->db = store_get_querier(isset($options['querier']) ? $options['querier'] : REALEFF_QUERIER_CACHE);
     
     $this->lifetime = isset($options['lifetime']) ? (int)$options['lifetime'] : 0;
-    
-    $this->time = $_SERVER['REQUEST_TIME'];
   }
   
   
@@ -503,10 +528,13 @@ class DatabaseCache implements CacheInterface {
     $key = strtr($key, '/\\?"\'%* ', '--______');
     $pieces = explode('-', $key, 2);
     if (empty($pieces)) {
-      $pieces = array('cache', $key);
+      $pieces = array(reset($this->bin), $key);
     }
     else if (count($pieces) == 1) {
-      array_unshift($pieces, 'cache');
+      array_unshift($pieces, reset($this->bin));
+    }
+    else if (!in_array($pieces[0], $this->bin)) {
+      $pieces[0] = reset($this->bin);
     }
     
     return $pieces;
@@ -518,13 +546,15 @@ class DatabaseCache implements CacheInterface {
    */
   public function delete($key) {
     // TODO Auto-generated method stub
-    list($bin, $key) = $this->cutBinKey($key);
+    list($bin, $cid) = $this->cutBinKey($key);
     
-    if (isset($bin) && isset($key)) {
+    if (isset($bin)) {
       $this->db->clear();
       $this->db->delete($bin)
-               ->where()->compare('key', $key)->end()
+               ->where()->compare('cid', $cid)->end()
                ->end();
+      
+      $this->db->addFilter('remove-cid');
       return $this->db->execute();
     }
     
@@ -537,8 +567,19 @@ class DatabaseCache implements CacheInterface {
    */
   public function flush() {
     // TODO Auto-generated method stub
-    $this->db->clear();
-    //$this->db->delete($bin);
+    $status = FALSE;
+    
+    foreach ($this->bin as $bin) {
+      $this->db->clear();
+      $this->db->delete($bin)->end();
+      
+      $this->db->addFilter('flush');
+      $this->db->execute();
+      
+      $status = TRUE;
+    }
+    
+    return $status;
   }
 
   /**
@@ -547,7 +588,22 @@ class DatabaseCache implements CacheInterface {
    */
   public function gc() {
     // TODO Auto-generated method stub
+    $status = FALSE;
     
+    foreach ($this->bin as $bin) {
+      $this->db->clear();
+      $this->db->delete($bin)->where()
+               ->compare('expire', 0, QueryCondition::NOT_EQUAL)
+               ->compare('expire', $this->time, QueryCondition::LESS)->end()
+               ->end();
+      
+      $this->db->addFilter('gc');
+      $this->db->execute();
+      
+      $status = TRUE;
+    }
+    
+    return $status;
   }
 
   /**
@@ -556,7 +612,25 @@ class DatabaseCache implements CacheInterface {
    */
   public function get($key) {
     // TODO Auto-generated method stub
+    list($bin, $cid) = $this->cutBinKey($key);
+    if (isset($bin)) {
+      $this->db->clear();
+      $this->db->select($bin)
+               ->field('data')->field('serialized')
+               ->where()->compare('cid', $cid)
+               ->add()->compare('expire', 0)
+               ->_OR()
+               ->compare('expire', $this->time, QueryCondition::GREATER_EQUAL)->end()
+               ->end();
+      
+      $this->db->addFilter('serialize-data');
+      $stmt = $this->db->query();
+      if ($cache = $stmt->fetchObject()) {
+        return $cache->serialized ? unserialize($cache->data) : $cache->data;
+      }
+    }
     
+    return FALSE;
   }
 
   /**
@@ -565,7 +639,33 @@ class DatabaseCache implements CacheInterface {
    */
   public function getMulti(array $keys) {
     // TODO Auto-generated method stub
+    $tkeys = array();
+    foreach ($keys as $key) {
+      list($bin, $cid) = $this->cutBinKey($key);
+      if (isset($bin)) {
+        $tkeys[$bin][$cid] = $key;
+      }
+    }
     
+    $items = array();
+    foreach ($tkeys as $bin => $cids) {
+      $this->db->clear();
+      $this->db->select($bin)
+               ->field(array('cid', 'data', 'serialized'))
+               ->where()->contain('cid', array_keys($cids))
+               ->add()->compare('expire', 0)
+               ->_OR()
+               ->compare('expire', $this->time, QueryCondition::GREATER_EQUAL)->end()
+               ->end();
+      
+      $this->db->addFilter('serialize-data');
+      $stmt = $this->db->query();
+      while ($cache = $stmt->fetchObject()) {
+        $items[$cids[$cache->cid]] = $cache->serialized ? @unserialize($cache->data) : $cache->data;
+      }
+    }
+    
+    return $items;
   }
 
   /**
@@ -574,7 +674,29 @@ class DatabaseCache implements CacheInterface {
    */
   public function increment($key, $offset = 1) {
     // TODO Auto-generated method stub
+    list($bin, $cid) = $this->cutBinKey($key);
+    if (isset($bin)) {
+      $this->db->clear();
+      $this->db->update($bin)
+               ->expression('data', 'data + :offset', array('offset' => $offset))
+               ->field('serialized', FALSE)->field('expire', 0)
+               ->where()->compare('cid', $cid)->end()
+               ->end();
+      
+      $this->db->addFilter('increment');
+      $this->db->execute();
+      if ($this->db->affected_rows()) {
+        $this->db->clear();
+        $this->db->select($bin)->field('data')
+                 ->where()->compare('cid', $cid)->end()
+                 ->end();
+        
+        $this->db->addFilter('data');
+        return $this->db->query()->fetchField();
+      }
+    }
     
+    return FALSE;
   }
   
   /**
@@ -583,7 +705,29 @@ class DatabaseCache implements CacheInterface {
    */
   public function decrement($key, $offset = 1) {
     // TODO Auto-generated method stub
+    list($bin, $cid) = $this->cutBinKey($key);
+    if (isset($bin)) {
+      $this->db->clear();
+      $this->db->update($bin)
+               ->expression('data', 'data - :offset', array('offset' => $offset))
+               ->field('serialized', FALSE)->field('expire', 0)
+               ->where()->compare('cid', $cid)->end()
+               ->end();
+      
+      $this->db->addFilter('decrement');
+      $this->db->execute();
+      if ($this->db->affected_rows()) {
+        $this->db->clear();
+        $this->db->select($bin)->field('data')
+                 ->where()->compare('cid', $cid)->end()
+                 ->end();
+        
+        $this->db->addFilter('data');
+        return $this->db->query()->fetchField();
+      }
+    }
     
+    return FALSE;
   }
 
   /**
@@ -592,7 +736,17 @@ class DatabaseCache implements CacheInterface {
    */
   public function isEmpty() {
     // TODO Auto-generated method stub
+    foreach ($this->bin as $bin) {
+      $this->db->clear();
+      $this->db->select($bin)->forCount();
+      
+      $this->db->addFilter('isempty');
+      if ($this->db->query()->fetchField()) {
+        return FALSE;
+      }
+    }
     
+    return TRUE;
   }
 
   /**
@@ -601,7 +755,27 @@ class DatabaseCache implements CacheInterface {
    */
   public function set($key, $data, $lifetime = 0) {
     // TODO Auto-generated method stub
+    list($bin, $cid) = $this->cutBinKey($key);
+    if (isset($bin)) {
+      $fields = array('created' => $this->time);
+      $fields['expire'] = $lifetime > 0 ? $this->time + $lifetime : 0;
+      if (is_string($data)) {
+        $fields['data'] = $data;
+        $fields['serialized'] = FALSE;
+      }
+      else {
+        $fields['data'] = serialize($data);
+        $fields['serialized'] = TRUE;
+      }
+      
+      $this->db->clear();
+      $this->db->insert_unique($bin)
+               ->key('cid', $cid)->fields($fields)
+               ->end();
+      return (bool)$this->db->execute();
+    }
     
+    return FALSE;
   }
 
   /**
@@ -610,14 +784,21 @@ class DatabaseCache implements CacheInterface {
    */
   public function setMulti(array $items, $lifetime = 0) {
     // TODO Auto-generated method stub
+    $status = FALSE;
+    foreach ($items as $key => $data) {
+      $status |= $this->set($key, $data, $lifetime);
+    }
     
+    return $status;
   }
   
 }
 
 
+
 function cache_get($key, $bin = 'cache') {
-  $cache = new FileCache();
+  //$cache = new FileCache(array('data'));
+  $cache = new DatabaseCache(array('cache'));
   
   return $cache->get($bin .'-'. $key);
 }
@@ -627,7 +808,8 @@ function cache_get_multi(array $keys, $bin = 'cache') {
 }
 
 function cache_set($key, $data, $lifetime = 0, $bin = 'cache') {
-  $cache = new FileCache();
+  //$cache = new FileCache(array('data'));
+  $cache = new DatabaseCache(array('cache'));
   
   return $cache->set($bin .'-'. $key, $data, $lifetime);
 }
@@ -644,7 +826,8 @@ function cache_clear_all($key = NULL, $bin = NULL) {
     return TRUE;
   }
   
-  $cache = new FileCache();
+  //$cache = new FileCache(array('data'));
+  $cache = new DatabaseCache(array('cache'));
   if (isset($bin) && isset($key)) {
     $clears[$clear_id] = $cache->delete($key);
   }
