@@ -6,13 +6,13 @@ class MemcacheCache extends AbstractCache implements CacheInterface {
   
   protected $compress = 0;
   
-  protected $secret;
+  protected $prefix;
   
   public function __construct(array $bin, array $options = array()) {
     parent::__construct($bin, $options);
     
     // 指定数据键名加密码。
-    $this->secret = isset($options['secret']) ? $options['secret'] : substr($GLOBALS['auth_key'], 0, 8);
+    $this->prefix = isset($options['prefix']) ? $options['prefix'] : substr($GLOBALS['auth_key'], 0, 8);
     
     // 连接选项
     $option = isset($options['option']) ? $options['option'] : array();
@@ -46,7 +46,7 @@ class MemcacheCache extends AbstractCache implements CacheInterface {
     }
   }
   
-  protected function formatKey($key) {
+  protected function prifixKey($key) {
     if (empty($key)) {
       return FALSE;
     }
@@ -60,10 +60,8 @@ class MemcacheCache extends AbstractCache implements CacheInterface {
     else if (count($pieces) == 1) {
       array_unshift($pieces, reset($this->bin));
     }
-    else if (!in_array($pieces[0], $this->bin)) {
-      $pieces[0] = reset($this->bin);
-    }
-    $pieces[] = $this->secret;
+    // 加入键名前缀
+    array_unshift($pieces, $this->prefix);
     
     return implode('-', $pieces);
   }
@@ -74,7 +72,7 @@ class MemcacheCache extends AbstractCache implements CacheInterface {
    */
   public function delete($key) {
     // TODO Auto-generated method stub
-    $key = $this->formatKey($key);
+    $key = $this->prifixKey($key);
     
     return $this->memcache->delete($key);
   }
@@ -103,7 +101,7 @@ class MemcacheCache extends AbstractCache implements CacheInterface {
    */
   public function get($key) {
     // TODO Auto-generated method stub
-    $key = $this->formatKey($key);
+    $key = $this->prifixKey($key);
     
     return $this->memcache->get($key);
   }
@@ -116,7 +114,7 @@ class MemcacheCache extends AbstractCache implements CacheInterface {
     // TODO Auto-generated method stub
     $mkeys = array();
     foreach ($keys as $key) {
-      $mkeys[$this->formatKey($key)] = $key;
+      $mkeys[$this->prifixKey($key)] = $key;
     }
 
     if ($items = $this->memcache->get(array_keys($mkeys))) {
@@ -137,7 +135,7 @@ class MemcacheCache extends AbstractCache implements CacheInterface {
    */
   public function increment($key, $offset = 1) {
     // TODO Auto-generated method stub
-    $key = $this->formatKey($key);
+    $key = $this->prifixKey($key);
     
     return $this->memcache->increment($key, (int)$offset);
   }
@@ -148,7 +146,7 @@ class MemcacheCache extends AbstractCache implements CacheInterface {
    */
   public function decrement($key, $offset = 1) {
     // TODO Auto-generated method stub
-    $key = $this->formatKey($key);
+    $key = $this->prifixKey($key);
     
     return $this->memcache->decrement($key, (int)$offset);
   }
@@ -170,7 +168,7 @@ class MemcacheCache extends AbstractCache implements CacheInterface {
    */
   public function set($key, $data, $lifetime = 0) {
     // TODO Auto-generated method stub
-    $key = $this->formatKey($key);
+    $key = $this->prifixKey($key);
     
     return $this->memcache->set($key, $data, $this->compress, $lifetime > 0 ? $this->time + $lifetime : 0);
   }
