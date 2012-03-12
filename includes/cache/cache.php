@@ -122,18 +122,46 @@ interface CacheInterface {
 
 abstract class AbstractCache {
   
+  // 按ID范围或模数分表
+  // 按年月日时间分表
+  // 按首字符分表
+  // 按md5序列分表
+  // 按其它哈希算法分表
+  // 按指定字段值分表
+  const HASH_CRC32 = 0;
+  
+  const HASH_MD5 = 1;
+  
+  
   /**
    * @var array
    */
   protected $bin;
   
+  protected $lifetime;
+  
+  protected $hash;
+  
   protected $time;
   
-  public function __construct(array $bin) {
+  public function __construct(array $bin, array $options) {
     // 缓存容器
     $this->bin = $bin;
+    $this->lifetime = isset($options['lifetime']) ? (int)$options['lifetime'] : 0;
+    $this->hash = isset($options['hash']) ? $options['hash'] : self::HASH_CRC32;
     
     $this->time = $_SERVER['REQUEST_TIME'];
+  }
+  
+  /**
+   * 根据缓存键名取得容器名称
+   * 
+   * @param string $key
+   * 
+   * @return string
+   */
+  public function getBin($key) {
+    
   }
   
 }
@@ -150,10 +178,8 @@ class FileCache extends AbstractCache implements CacheInterface {
   
   protected $secret;
   
-  protected $lifetime;
-  
   public function __construct(array $bin, array $options = array()) {
-    parent::__construct($bin);
+    parent::__construct($bin, $options);
     
     // 指定文件缓存目录位置，如果目录位置是{workspace}则表示指定的缓存位置是当前工作空间路径。
     if (!empty($options['path'])) {
@@ -167,7 +193,6 @@ class FileCache extends AbstractCache implements CacheInterface {
     
     // 指定数据文件名加密码，如果指定的secret为FALSE或空，则表示缓存的是静态页面内容。
     $this->secret = isset($options['secret']) ? $options['secret'] : substr($GLOBALS['auth_key'], 0, 8);
-    $this->lifetime = isset($options['lifetime']) ? (int)$options['lifetime'] : 0;
   }
   
   protected function check_dir(&$dir) {
@@ -507,15 +532,11 @@ class DatabaseCache extends AbstractCache implements CacheInterface {
   
   protected $db;
   
-  protected $lifetime;
-  
   
   public function __construct(array $bin, array $options = array()) {
-    parent::__construct($bin);
+    parent::__construct($bin, $options);
     
     $this->db = store_get_querier(isset($options['querier']) ? $options['querier'] : REALEFF_QUERIER_CACHE);
-    
-    $this->lifetime = isset($options['lifetime']) ? (int)$options['lifetime'] : 0;
   }
   
   
@@ -795,11 +816,13 @@ class DatabaseCache extends AbstractCache implements CacheInterface {
 }
 
 
+include_once REALEFF_ROOT .'/includes/cache/memcache.php';
 
 function cache_get($key, $bin = 'cache') {
   //$cache = new FileCache(array('data'));
-  $cache = new DatabaseCache(array('cache'));
-  
+  //$cache = new DatabaseCache(array('cache'));
+  $cache = new MemcacheCache(array('cache'));
+  $cache->isEmpty();
   return $cache->get($bin .'-'. $key);
 }
 
@@ -809,7 +832,8 @@ function cache_get_multi(array $keys, $bin = 'cache') {
 
 function cache_set($key, $data, $lifetime = 0, $bin = 'cache') {
   //$cache = new FileCache(array('data'));
-  $cache = new DatabaseCache(array('cache'));
+  //$cache = new DatabaseCache(array('cache'));
+  $cache = new MemcacheCache(array('cache'));
   
   return $cache->set($bin .'-'. $key, $data, $lifetime);
 }
@@ -827,7 +851,8 @@ function cache_clear_all($key = NULL, $bin = NULL) {
   }
   
   //$cache = new FileCache(array('data'));
-  $cache = new DatabaseCache(array('cache'));
+  //$cache = new DatabaseCache(array('cache'));
+  $cache = new MemcacheCache(array('cache'));
   if (isset($bin) && isset($key)) {
     $clears[$clear_id] = $cache->delete($key);
   }

@@ -1,19 +1,10 @@
 <?php
 
-class ApcCache implements CacheInterface {
+class ApcCache extends AbstractCache implements CacheInterface {
   
-  
-  protected $bin;
-  
-  protected $secret;
-  
-  protected $lifetime;
-  
-  protected $time;
   
   public function __construct(array $bin, array $options = array()) {
-    // 缓存容器
-    $this->bin = $bin;
+    parent::__construct($bin, $options);
     
   }
 
