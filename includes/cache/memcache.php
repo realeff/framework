@@ -114,15 +114,15 @@ class MemcacheCache extends AbstractCache implements CacheInterface {
    */
   public function getMulti(array $keys) {
     // TODO Auto-generated method stub
-    $keys = array_flip($keys);
-    foreach (array_keys($keys) as $key) {
-      $keys[$key] = $this->formatKey($key);
+    $mkeys = array();
+    foreach ($keys as $key) {
+      $mkeys[$this->formatKey($key)] = $key;
     }
 
-    if ($items = $this->memcache->get($keys)) {
+    if ($items = $this->memcache->get(array_keys($mkeys))) {
       $kitems = array();
       foreach ($items as $key => $value) {
-        $kitems[$keys[$key]] = $value;
+        $kitems[$mkeys[$key]] = $value;
       }
       
       return $kitems;
