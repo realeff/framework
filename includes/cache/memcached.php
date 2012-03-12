@@ -53,14 +53,14 @@ class MemcachedCache extends AbstractCache implements CacheInterface {
   
   protected $memcached;
   
-  protected $secret;
+  protected $prefix;
   
   
   public function __construct(array $bin, array $options = array()) {
     parent::__construct($bin, $options);
     
-    // 指定数据键名加密码。
-    $this->secret = isset($options['secret']) ? $options['secret'] : substr($GLOBALS['auth_key'], 0, 8);
+    // 指定数据键名前缀。
+    $this->prefix = isset($options['prefix']) ? $options['prefix'] : substr($GLOBALS['auth_key'], 0, 8);
     
     // 连接选项
     $option = isset($options['option']) ? $options['option'] : array();
@@ -78,7 +78,8 @@ class MemcachedCache extends AbstractCache implements CacheInterface {
       
       $this->memcached->addServer($server['host'], $server['port'], $server['weight']);
     }
-    $this->memcached->setOption(Memcached::OPT_PREFIX_KEY, $this->secret);
+    // 设置键名前缀
+    $this->memcached->setOption(Memcached::OPT_PREFIX_KEY, $this->prefix);
     
     foreach ($option as $key => $value) {
       if (isset($this->_options[$key])) {
