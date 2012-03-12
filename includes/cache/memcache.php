@@ -129,7 +129,7 @@ class MemcacheCache extends AbstractCache implements CacheInterface {
     // TODO Auto-generated method stub
     $key = $this->formatKey($key);
     
-    return $this->memcache->increment($key, $offset);
+    return $this->memcache->increment($key, (int)$offset);
   }
 
   /**
@@ -140,7 +140,7 @@ class MemcacheCache extends AbstractCache implements CacheInterface {
     // TODO Auto-generated method stub
     $key = $this->formatKey($key);
     
-    return $this->memcache->decrement($key, $offset);
+    return $this->memcache->decrement($key, (int)$offset);
   }
 
   /**
@@ -149,9 +149,9 @@ class MemcacheCache extends AbstractCache implements CacheInterface {
    */
   public function isEmpty() {
     // TODO Auto-generated method stub
-    $status = $this->memcache->getStats('items');
+    $status = $this->memcache->getStats();
     
-    return $status && $status['curr_items'] > 0 ? FALSE : TRUE;
+    return $status && intval($status['curr_items']) > 0 ? FALSE : TRUE;
   }
 
   /**
