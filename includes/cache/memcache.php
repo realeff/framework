@@ -1,20 +1,71 @@
 <?php
 
-class MemcacheCache implements CacheInterface {
+class MemcacheCache extends AbstractCache implements CacheInterface {
   
+  protected $memcache;
   
-  protected $bin;
+  protected $compress = 0;
   
   protected $secret;
   
-  protected $lifetime;
-  
-  protected $time;
-  
   public function __construct(array $bin, array $options = array()) {
-    // 缓存容器
-    $this->bin = $bin;
-
+    parent::__construct($bin, $options);
+    
+    // 指定数据键名加密码。
+    $this->secret = isset($options['secret']) ? $options['secret'] : substr($GLOBALS['auth_key'], 0, 8);
+    
+    // 连接选项
+    $option = isset($options['option']) ? $options['option'] : array();
+    $option += array(
+      'saving' => 0.2,
+      'persistent' => TRUE,
+      'timeout' => 1,
+      'retry_interval' => 15,
+      'status' => TRUE
+    );
+    // 服务器列表
+    $servers = isset($options['server']) ? $options['server'] : array(array('host' => '127.0.0.1', 'port' => '11211'));
+    //检查server选项，如果server数组中有host键名，则server包含一个服务器，否则包含一组服务器。
+    if (isset($servers['host'])) {
+      $servers = array($servers);
+    }
+    
+    $this->memcache = new Memcache;
+    foreach ($servers as $weight => $server) {
+      $option['weight'] = $weight+1;
+      $server += $option;
+      
+      $this->memcache->addServer($server['host'], $server['port'], $server['persistent'],
+          $server['weight'], $server['timeout'], $server['retry_interval'], $server['status']);
+    }
+    
+    if (isset($option['compress'])) {
+      // 开启对于大数据的自动压缩
+      $this->compress = $option['compress'] === FALSE ? 0 : MEMCACHE_COMPRESSED;
+      $this->memcache->setCompressThreshold($option['compress'], $option['saving']);
+    }
+  }
+  
+  protected function formatKey($key) {
+    if (empty($key)) {
+      return FALSE;
+    }
+    
+    // 将key中含有“/\”字符转换为目录分隔符-，并清理字符 ? " ' % * 
+    $key = strtr($key, '/\\', '--');
+    $pieces = explode('-', $key, 2);
+    if (empty($pieces)) {
+      $pieces = array(reset($this->bin), $key);
+    }
+    else if (count($pieces) == 1) {
+      array_unshift($pieces, reset($this->bin));
+    }
+    else if (!in_array($pieces[0], $this->bin)) {
+      $pieces[0] = reset($this->bin);
+    }
+    $pieces[] = $this->secret;
+    
+    return implode('-', $pieces);
   }
 
   /**
@@ -23,7 +74,9 @@ class MemcacheCache implements CacheInterface {
    */
   public function delete($key) {
     // TODO Auto-generated method stub
-
+    $key = $this->formatKey($key);
+    
+    return $this->memcache->delete($key);
   }
 
   /**
@@ -32,7 +85,7 @@ class MemcacheCache implements CacheInterface {
    */
   public function flush() {
     // TODO Auto-generated method stub
-
+    return $this->memcache->flush();
   }
 
   /**
@@ -41,7 +94,7 @@ class MemcacheCache implements CacheInterface {
    */
   public function gc() {
     // TODO Auto-generated method stub
-
+    return TRUE;
   }
 
   /**
@@ -50,7 +103,9 @@ class MemcacheCache implements CacheInterface {
    */
   public function get($key) {
     // TODO Auto-generated method stub
-
+    $key = $this->formatKey($key);
+    
+    return $this->memcache->get($key);
   }
 
   /**
@@ -59,7 +114,11 @@ class MemcacheCache implements CacheInterface {
    */
   public function getMulti(array $keys) {
     // TODO Auto-generated method stub
+    foreach ($keys as $index => $key) {
+      $keys[$index] = $this->formatKey($key);
+    }
 
+    return $this->memcache->get($keys);
   }
 
   /**
@@ -68,7 +127,9 @@ class MemcacheCache implements CacheInterface {
    */
   public function increment($key, $offset = 1) {
     // TODO Auto-generated method stub
-
+    $key = $this->formatKey($key);
+    
+    return $this->memcache->increment($key, $offset);
   }
 
   /**
@@ -77,7 +138,9 @@ class MemcacheCache implements CacheInterface {
    */
   public function decrement($key, $offset = 1) {
     // TODO Auto-generated method stub
-
+    $key = $this->formatKey($key);
+    
+    return $this->memcache->decrement($key, $offset);
   }
 
   /**
@@ -86,7 +149,9 @@ class MemcacheCache implements CacheInterface {
    */
   public function isEmpty() {
     // TODO Auto-generated method stub
-
+    $status = $this->memcache->getStats('items');
+    
+    return $status && $status['curr_items'] > 0 ? FALSE : TRUE;
   }
 
   /**
@@ -95,7 +160,9 @@ class MemcacheCache implements CacheInterface {
    */
   public function set($key, $data, $lifetime = 0) {
     // TODO Auto-generated method stub
-
+    $key = $this->formatKey($key);
+    
+    return $this->memcache->set($key, $data, $this->compress, $lifetime > 0 ? $this->time + $lifetime : 0);
   }
 
   /**
@@ -104,16 +171,12 @@ class MemcacheCache implements CacheInterface {
    */
   public function setMulti(array $items, $lifetime = 0) {
     // TODO Auto-generated method stub
-
-  }
-
-  /**
-   * (non-PHPdoc)
-   * @see Countable::count()
-   */
-  public function count() {
-    // TODO Auto-generated method stub
-
+    $status = FALSE;
+    foreach ($items as $key => $data) {
+      $status |= $this->set($key, $data, $lifetime);
+    }
+    
+    return $status;
   }
 
 }
