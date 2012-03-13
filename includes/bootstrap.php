@@ -348,6 +348,7 @@ global $library_dir, $extension_dir;
   $dataquerier = array();
   $multisites = array();
   $config = array();
+  $auth_key = '';
 
   // 加载系统配置文件
   if (file_exists(REALEFF_ROOT .'/config.php')) {
@@ -915,6 +916,34 @@ function _realeff_autoload_interface($interface) {
 function _realeff_autoload_class($class) {
   print $class;
   return FALSE;
+}
+
+/**
+ * 0123456789
+ * abcdefghijklmnopqrstuvwxyz
+ * ABCDEFGHIJKLMNOPQRSTUVWXYZ
+ */
+/**
+ * 
+ * @param string $first
+ * @param string $second
+ */
+function stranimate($first, $second) {
+  
+  preg_match('//', $first);
+}
+
+/**
+ * 根据ID生成分表序列名称
+ * 
+ * @param string $name 表名
+ * @param string $id 编号
+ * @param int $count 分割数量
+ * 
+ * @return string 新表名
+ */
+function realeff_partition_table($name, $id, $count = 10) {
+  return $name .'_'. strval(abs(crc32($id)) % $count + 1);
 }
 
 /**

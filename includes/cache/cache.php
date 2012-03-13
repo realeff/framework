@@ -160,9 +160,9 @@ abstract class AbstractCache {
    * 
    * @return string
    */
-  public function getBin($key) {
+  //public function getBin($key) {
     
-  }
+  //}
   
 }
 

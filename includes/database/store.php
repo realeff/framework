@@ -1573,3 +1573,10 @@ function store_get_querier($name) {
   return Store::getQuerier($name);
 }
 
+function store_querier_register($name, $target = 'default', $system = 'realeff') {
+  
+}
+
+function store_querier_target($name, $target = 'default') {
+  
+}
