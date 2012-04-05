@@ -68,23 +68,23 @@
 defined('STORE_DRIVER_PATH') or die;
 
 class StoreDatabase_pgsql extends StoreDatabase  {
-  
+
   protected $dsn;
-  
+
   private $_result;
-  
+
   /**
    * 构造一个PGSQL链接
    * @param array $options
    */
   public function __construct(array $options) {
     parent::__construct($options);
-    
+
     // Default to TCP database on port 5432.
     if (empty($options['port'])) {
       $options['port'] = 5432;
     }
-    
+
     // PostgreSQL in trust mode doesn't require a password to be supplied.
     if (empty($options['password'])) {
       $options['password'] = NULL;
@@ -98,7 +98,7 @@ class StoreDatabase_pgsql extends StoreDatabase  {
     else {
       $options['password'] = str_replace('\\', '\\\\', $options['password']);
     }
-    
+
     // The DSN should use either a socket or a host/port.
     if (isset($options['unix_socket'])) {
       //$dsn = 'mysql:unix_socket=' . $conn_options['unix_socket'];
@@ -121,24 +121,24 @@ class StoreDatabase_pgsql extends StoreDatabase  {
       }
     }
     $this->dsn = $dsn;
-    
+
     // 注册查询语句分析器
     $this->registerAnalyzer(new SQLSelectAnalyzer());
     $this->registerAnalyzer(new SQLInsertAnalyzer_pgsql());
     $this->registerAnalyzer(new SQLUpdateAnalyzer());
     $this->registerAnalyzer(new SQLDeleteAnalyzer());
   }
-  
+
   /**
-   * (non-PHPdoc)
+   *
    * @see RelationDatabase::driver()
    */
   public function driver() {
     // TODO Auto-generated method stub
     return 'pgsql';
   }
-  
-  /* (non-PHPdoc)
+
+  /*
  * @see RelationDatabase::version()
  */
   public function version() {
@@ -147,33 +147,33 @@ class StoreDatabase_pgsql extends StoreDatabase  {
   }
 
   /**
-   * (non-PHPdoc)
+   *
    * @see StoreDatabase::open()
    */
   public function open() {
     // TODO Auto-generated method stub
-    
+
     // pg_last_error() does not return a useful error message for database
     // database errors. We must turn on error tracking to get at a good error
     // message, which will be stored in $php_errormsg.
     $track_errors_previous = ini_get('track_errors');
     ini_set('track_errors', 1);
-    
+
     $this->resource = @pg_connect($this->dsn);
     if (!$this->resource) {
       return FALSE;
     }
-    
+
     // Restore error tracking setting
     ini_set('track_errors', $track_errors_previous);
-    
+
     pg_query($this->resource, "set client_encoding=\"UTF8\"");
-    
+
     return TRUE;
   }
-  
+
   /**
-   * (non-PHPdoc)
+   *
    * @see StoreDatabase::close()
    */
   public function close() {
@@ -182,25 +182,25 @@ class StoreDatabase_pgsql extends StoreDatabase  {
   }
 
   /**
-   * (non-PHPdoc)
+   *
    * @see StoreDatabase::ping()
    */
   public function ping() {
     // TODO Auto-generated method stub
     return pg_ping($this->resource);
   }
-  
+
   /**
-   * (non-PHPdoc)
+   *
    * @see StoreDatabase::errorCode()
    */
   public function errorCode() {
     // TODO Auto-generated method stub
     return (bool)$this->errorInfo();
   }
-  
+
   /**
-   * (non-PHPdoc)
+   *
    * @see StoreDatabase::errorInfo()
    */
   public function errorInfo() {
@@ -209,7 +209,7 @@ class StoreDatabase_pgsql extends StoreDatabase  {
   }
 
   /**
-   * (non-PHPdoc)
+   *
    * @see StoreDatabase::quote()
    */
   public function quote($value, $type = NULL) {
@@ -217,7 +217,7 @@ class StoreDatabase_pgsql extends StoreDatabase  {
     if (!isset($type)) {
       $type = $this->dataType($value);
     }
-    
+
     switch ($type) {
       case self::PARAM_NULL:
         return "''";
@@ -231,22 +231,22 @@ class StoreDatabase_pgsql extends StoreDatabase  {
       case self::PARAM_STR:
         return "'". pg_escape_string($this->resource, $value) ."'";
     }
-    
+
     return $value;
   }
 
 
   /**
-   * (non-PHPdoc)
+   *
    * @see StoreDatabase::schema()
    */
   public function schema() {
     // TODO Auto-generated method stub
-    
+
   }
 
   /**
-   * (non-PHPdoc)
+   *
    * @see StoreDatabase::lastInsertId()
    */
   public function lastInsertId() {
@@ -255,23 +255,14 @@ class StoreDatabase_pgsql extends StoreDatabase  {
   }
 
   /**
-   * (non-PHPdoc)
-   * @see StoreDatabase::prepare()
-   */
-  public function prepare(Query $query) {
-    // TODO Auto-generated method stub
-    return new StoreStatementDatabase_pgsql($this, $query);
-  }
-
-  /**
-   * (non-PHPdoc)
+   *
    * @see StoreDatabase::affectedRows()
    */
   public function affectedRows() {
     // TODO Auto-generated method stub
     return empty($this->_result) ? 0 : pg_affected_rows($this->_result);
   }
-  
+
   private function _exec($sql) {
     $this->_result = pg_query($this->resource, $sql);
     if ($this->_result !== FALSE) {
@@ -281,59 +272,30 @@ class StoreDatabase_pgsql extends StoreDatabase  {
       return FALSE;
     }
   }
-  
+
   /**
-   * (non-PHPdoc)
+   *
    * @see StoreDatabase::execute()
    */
-  public function execute(Query $query) {
+  public function execute($sql, array $args = array()) {
     // TODO Auto-generated method stub
-    $analyzer = $this->analyzer($query);
-    // 检查分析器是否SQLAnalyzer
-    if (!($analyzer instanceof SQLAnalyzer)) {
-      return FALSE;
-    }
-    
-    $analyzer->setQuery($query);
-    $sql = (string)$analyzer;
-    $args = $analyzer->arguments();
-    $analyzer->clean();
     // 完成数据表前缀
-    $sql = $this->prefixTables($sql);
-    // 绑定参数数据
+    $this->prefixTables($sql, $args);
+    // 扩展数组参数
     $this->expandArguments($sql, $args);
-    // 绑定参数
+    // 绑定参数数据
     $this->bindArguments($sql, $args);
-    
+
     return $this->_exec($sql);
   }
 
   /**
-   * (non-PHPdoc)
-   * @see StoreDatabase::temporary()
+   *
+   * @see StoreDatabase::prepare()
    */
-  public function temporary($temporaryTable, SelectQuery $query) {
+  public function prepare($statement) {
     // TODO Auto-generated method stub
-    $analyzer = $this->analyzer($query);
-    // 检查分析器是否SQLAnalyzer
-    if (!($analyzer instanceof SQLAnalyzer)) {
-      return FALSE;
-    }
-    
-    $analyzer->setQuery($query);
-    $sql = (string)$analyzer;
-    $args = $analyzer->arguments();
-    $analyzer->clean();
-    
-    $sql = 'CREATE TEMPORARY TABLE {' . $temporaryTable . '} AS '. $sql;
-    // 完成数据表前缀
-    $sql = $this->prefixTables($sql);
-    // 绑定参数数据
-    $this->expandArguments($sql, $args);
-    // 绑定参数
-    $this->bindArguments($sql, $args);
-    
-    return (bool)$this->_exec($sql);
+    return new StoreStatementDatabase_pgsql($this, $statement);
   }
 
 }

@@ -8,167 +8,109 @@
  *Query Analyzer
  */
 abstract class Query {
-  
+
   /**
    * 插入
    */
   const INSERT = 0x001;
-  
+
   /**
    * 更新
    */
   const UPDATE = 0x002;
-  
+
   /**
    * 删除
    */
   const DELETE = 0x004;
-  
+
   /**
    * 查询
    */
   const SELECT = 0x008;
-  
+
+  /**
+   * 临时查询
+   */
+  const TEMPORARY = 0x010;
+
   /**
    * 联合查询
    */
-  const MULTISELECT = 0x010;
-  
+  const MULTISELECT = 0x020;
+
   /**
    * 唯一插入查询
    */
-  const UNIQUEINSERT = 0x020;
-  
-  /**
-   * 标识符
-   * 
-   * @var string
-   */
-  protected $identifier;
-  
+  const UNIQUEINSERT = 0x040;
+
   /**
    * 查询语句注解
-   * 
+   *
    * @var array
    */
   protected $comments = array();
-  
+
   /**
    * 数据表
-   * 
+   *
    * @var string
    */
   protected $table;
-  
-  /**
-   * 结束查询
-   * 
-   * @var boolean
-   */
-  protected $end = FALSE;
-  
-  /**
-   * 查询参数
-   *
-   * @var QueryParameter
-   */
-  protected $parameter;
-  
+
+
   /**
    * 构造一个查询分类器
    *
    * @param string $table
-   * @param QueryParameter $parameter
    */
-  public function __construct($table, QueryParameter $parameter) {
+  public function __construct($table) {
     $this->table = $table;
-    $this->parameter = $parameter;
   }
-  
+
   public function __toString() {
     return $this->name();
   }
-  
+
   /**
    * 查询器类型
    */
   abstract public function type();
-  
+
   /**
    * 查询器名称
    */
   abstract public function name();
-  
+
   /**
    * 获取数据表名
-   * 
+   *
    * @return string
    */
   final public function getTable() {
     return $this->table;
   }
-  
-  /**
-   * 获取查询参数
-   * 
-   * @return QueryParameter
-   */
-  final public function parameter() {
-    return $this->parameter;
-  }
 
   /**
    * 添加关于此查询语句的注解
-   * 
+   *
    * @param string $comment 注解内容
-   * 
+   *
    * @return Query
    */
   public function addComment($comment) {
     $this->comments[] = $comment;
     return $this;
   }
-  
+
   /**
    * 获取查询语句的注解
-   * 
+   *
    * @return array
    */
   public function &getComments() {
     return $this->comments;
   }
-
-  /**
-   * 设置查询标识符
-   * 
-   * @param string $identifier
-   */
-  public function setIdentifier($identifier) {
-    $this->identifier = $identifier;
-  }
-  
-  /**
-   * 获取查询标识符
-   * 
-   * @return string
-   */
-  public function getIdentifier() {
-    return $this->identifier;
-  }
-
-  /**
-   * 结束查询器并返回到存储器命令操作
-   *
-   * @return Query
-   */
-  abstract public function end();
-  
-  /**
-   * 执行查询
-   */
-//   public function execute() {
-//     //$this->end();
-//   }
 }
 
 /**
@@ -227,7 +169,7 @@ class QueryParameter implements Iterator, ArrayAccess, Countable {
   }
 
   /**
-   * (non-PHPdoc)
+   *
    * @see ArrayAccess::offsetExists()
    */
   public function offsetExists($offset) {
@@ -236,7 +178,7 @@ class QueryParameter implements Iterator, ArrayAccess, Countable {
   }
 
   /**
-   * (non-PHPdoc)
+   *
    * @see ArrayAccess::offsetGet()
    */
   public function offsetGet($offset) {
@@ -245,7 +187,7 @@ class QueryParameter implements Iterator, ArrayAccess, Countable {
   }
 
   /**
-   * (non-PHPdoc)
+   *
    * @see ArrayAccess::offsetSet()
    */
   public function offsetSet($offset, $value) {
@@ -262,7 +204,7 @@ class QueryParameter implements Iterator, ArrayAccess, Countable {
   }
 
   /**
-   * (non-PHPdoc)
+   *
    * @see ArrayAccess::offsetUnset()
    */
   public function offsetUnset($offset) {
@@ -271,7 +213,7 @@ class QueryParameter implements Iterator, ArrayAccess, Countable {
   }
 
   /**
-   * (non-PHPdoc)
+   *
    * @see Iterator::current()
    */
   public function current() {
@@ -280,7 +222,7 @@ class QueryParameter implements Iterator, ArrayAccess, Countable {
   }
 
   /**
-   * (non-PHPdoc)
+   *
    * @see Iterator::unique()
    */
   public function key() {
@@ -289,7 +231,7 @@ class QueryParameter implements Iterator, ArrayAccess, Countable {
   }
 
   /**
-   * (non-PHPdoc)
+   *
    * @see Iterator::next()
    */
   public function next() {
@@ -298,7 +240,7 @@ class QueryParameter implements Iterator, ArrayAccess, Countable {
   }
 
   /**
-   * (non-PHPdoc)
+   *
    * @see Iterator::rewind()
    */
   public function rewind() {
@@ -307,7 +249,7 @@ class QueryParameter implements Iterator, ArrayAccess, Countable {
   }
 
   /**
-   * (non-PHPdoc)
+   *
    * @see Iterator::valid()
    */
   public function valid() {
@@ -316,7 +258,7 @@ class QueryParameter implements Iterator, ArrayAccess, Countable {
   }
 
   /**
-   * (non-PHPdoc)
+   *
    * @see Countable::count()
    */
   public function count() {
@@ -333,130 +275,114 @@ class QueryParameter implements Iterator, ArrayAccess, Countable {
  *
  */
 class QueryCondition implements IteratorAggregate, Countable {
-  
+
   /**
    * 等于操作符
    */
   const EQUAL = '=';
-  
+
   /**
    * 不等于操作符
    */
   const NOT_EQUAL = '<>';
-  
+
   /**
    * 大于操作符
    */
   const GREATER = '>';
-  
+
   /**
    * 大于并且等于操作符
    */
   const GREATER_EQUAL = '>=';
-  
+
   /**
    * 小于操作符
    */
   const LESS = '<';
-  
+
   /**
    * 小于并且等于操作符
    */
   const LESS_EQUAL = '<=';
-  
+
   /**
    * 是NULL操作符
    */
   const IS_NULL = 1;
-  
+
   /**
    * 非NULL操作符
    */
   const IS_NOT_NULL = 2;
-  
+
   /**
    * EXISTS查询操作符
    */
   const EXISTS = 3;
-  
+
   /**
    * NOT EXISTS查询操作符
    */
   const NOT_EXISTS = 4;
-  
+
   /**
    * IN查询操作符
    */
   const IN = 5;
-  
+
   /**
    * NOT IN查询操作符
    */
   const NOT_IN = 6;
-  
+
   /**
    * LIKE查询操作符
    */
   const LIKE = 7;
-  
+
   /**
    * NOT LIKE查询操作符
    */
   const NOT_LIKE = 8;
-  
+
   /**
    * BETWEEN查询操作符
    */
   const BETWEEN = 9;
-  
+
   /**
    * NOT BETWEEN查询操作符
    */
   const NOT_BETWEEN = 10;
-  
+
   /**
    * 自定义查询条件
    */
   const WHERE = 1;
-  
+
   /**
    * 逻辑与条件链接符
    */
   const _AND_ = 1;
-  
+
   /**
    * 逻辑或条件链接符
    */
   const _OR_ = 2;
-  
 
-  /**
-   * @var Query
-   */
-  protected $query;
-  
-  /**
-   * @var QueryCondition
-   */
-  private $_parent;
-  
-  /**
-   * @var QueryCondition
-   */
-  private $_current;
-  
   /**
    * 过滤条件
    *
    * @var array
-   * 
+   *
    * @example
    *   $this->conditions[] = array(
    *     'field' => 'field',
    *     'value' => 'value',
    *     'operator' => QueryCondition::EQUAL,
    *   );
-   * @example 
+   * @example
    *   $this->conditions[] = QueryCondition::_OR_;
    * @example
    *   $this->conditions[] = array(
@@ -475,125 +401,47 @@ class QueryCondition implements IteratorAggregate, Countable {
    *     'operator' => QueryCondition::EXISTS,
    */
   protected $conditions = array();
-  
-  /**
-   * 条件参数
-   * 
-   * @var QueryParameter
-   */
-  protected $parameter;
-  
+
   /**
    * 结合操作符
-   * 
+   *
    * @var int
    *   QueryCondition::_AND_
    *   QueryCondition::_OR_
    */
   protected $conjunction;
-  
+
   /**
    * 条件数量
    */
   private $_count = 0;
-  
+
   /**
    * 构造一个过滤条件
    *
    * @param QueryParameter $parameter;
    * @param Query $query;
    */
-  public function __construct(QueryParameter $parameter, Query $query = NULL) {
+  public function __construct() {
     $this->conjunction = self::_AND_;
-    $this->query = $query;
-    $this->_current = $this;
-    $this->parameter = $parameter;
   }
-  
-  /**
-   * 结束查询条件并返回到查询器
-   * 
-   * @return Query
-   */
-  public function end() {
-    if (isset($this->_parent)) {
-      $this->_parent->end();
-      unset($this->query, $this->_parent);
-    }
-    else if (isset($this->_current)) {
-      $query = $this->query;
-      $current = $this->_current;
-      unset($this->query, $this->_current);
-      
-      $current->end();
-      return $query;
-    }
-  }
-  
-  /**
-   * 返回父查询条件
-   * 
-   * @return QueryCondition
-   */
-  public function parent() {
-    if (isset($this->_current->_parent)) {
-      $parent = $this->_current->_parent;
-      unset($this->_current->_parent);
-      $this->_current = $parent;
-    }
-    
-    return $this;
-  }
-  
+
   /**
    * 增加过滤条件
-   * 
+   *
    * @param QueryCondition $where
-   * 
+   *
    * @return QueryCondition
    */
-  final public function add(QueryCondition $condition = NULL) {
-    if (isset($condition)) {
-      $condition->end();
-      unset($condition->query, $condition->_current);
-      $this->_current->condition(NULL, $condition, NULL);
-    }
-    else {
-      $condition = new QueryCondition($this->parameter);
-      unset($condition->_current);
-      $condition->_parent = $this->_current;
-      $this->_current->condition(NULL, $condition, NULL);
-      
-      $this->_current = $condition;
-    }
-    
+  final public function add(QueryCondition $condition) {
+    $this->condition(NULL, $condition, NULL);
+
     return $this;
   }
-  
-  /**
-   * 追加过滤条件
-   * 
-   * @return QueryCondition
-   */
-  final public function append() {
-    $condition = new QueryCondition($this->parameter);
-    unset($condition->_current);
-    if (isset($this->_current->_parent)) {
-      $condition->_parent = $this->_current->_parent;
-      $this->_current->_parent->condition(NULL, $condition, NULL);
-      unset($this->_current->_parent);
-    }
-    else {
-      $this->condition(NULL, $condition, NULL);
-    }
-    $this->_current = $condition;
-    
-    return $this;
-  }
-  
+
   /**
    * 添加查询条件
-   * 
+   *
    * @param string $field
    * @param mixed $value
    * @param int $operator
@@ -602,7 +450,7 @@ class QueryCondition implements IteratorAggregate, Countable {
     if ($this->_count > 0) {
       $this->conditions[] = $this->conjunction;
     }
-    
+
     $this->conditions[] = array(
         'field' => $field,
         'value' => $value,
@@ -610,29 +458,29 @@ class QueryCondition implements IteratorAggregate, Countable {
     );
     $this->_count++;
   }
-  
+
   /**
    * 逻辑或链接符
-   * 
+   *
    * @return QueryCondition
    */
   public function _AND() {
-    $this->_current->conjunction = self::_AND_;
-    
+    $this->conjunction = self::_AND_;
+
     return $this;
   }
-  
+
   /**
    * 逻辑或链接符
-   * 
+   *
    * @return QueryCondition
    */
   public function _OR() {
-    $this->_current->conjunction = self::_OR_;
-    
+    $this->conjunction = self::_OR_;
+
     return $this;
   }
-  
+
   /**
    * 增加一个比较条件
    *
@@ -650,13 +498,11 @@ class QueryCondition implements IteratorAggregate, Countable {
    * @return QueryCondition
    */
   public function compare($field, $value, $operator = self::EQUAL) {
-    $value = $this->parameter->add($field, $value);
-    
-    $this->_current->condition($field, $value, $operator);
-    
+    $this->condition($field, $value, $operator);
+
     return $this;
   }
-  
+
   /**
    * 增加一个检查空值的条件
    *
@@ -667,8 +513,8 @@ class QueryCondition implements IteratorAggregate, Countable {
    * @return QueryCondition
    */
   public function isNull($field, $flag = TRUE) {
-    $this->_current->condition($field, NULL, ($flag ? self::IS_NULL : self::IS_NOT_NULL));
-    
+    $this->condition($field, NULL, ($flag ? self::IS_NULL : self::IS_NOT_NULL));
+
     return $this;
   }
 
@@ -676,7 +522,8 @@ class QueryCondition implements IteratorAggregate, Countable {
    * 增加一个包含条件
    *
    * @param string $field 字段名称
-   * @param mixed $value 包含内容，可以包含一个数组或是一个字符串
+   * @param mixed $value 包含内容，
+   *   可以包含一个数组或是一个字符串，字符串允许使用%和_通配字符。
    * @param boolean $flag
    *   如果设置为TRUE则是增加一个包含指定内容的条件，设置为FALSE则是增加一个不包含指定内容的条件。
    *
@@ -684,44 +531,38 @@ class QueryCondition implements IteratorAggregate, Countable {
    */
   public function contain($field, $value, $flag = TRUE) {
     if (is_string($value)) {
-      $value = $this->parameter->add($field, $value);
-      $this->_current->condition($field, $value, ($flag ? self::LIKE : self::NOT_LIKE));
+      $this->condition($field, $value, ($flag ? self::LIKE : self::NOT_LIKE));
     }
     else {
       if ($value instanceof SelectQuery) {
-        $value->end();
+        $this->condition($field, $value, ($flag ? self::IN : self::NOT_IN));
       }
       else {
-        $value = is_array($value) ? $value : array($value);
-        $value = $this->parameter->add($field, $value);
+        $value = is_array($value) ? array_flatten($value) : array($value);
+        $this->condition($field, array($value), ($flag ? self::IN : self::NOT_IN));
       }
-      
-      $this->_current->condition($field, $value, ($flag ? self::IN : self::NOT_IN));
     }
-    
+
     return $this;
   }
-  
+
   /**
    * 增加一个介于条件
-   * 
+   *
    * @param string $field 字段名称
    * @param array $between 介于范围
    *   介于值可以是字符和数字，数组的第一个值为开始，第二个值为结束，表示介于开始和结束之间的值有效。
    * @param boolean $flag
    *   如果设置为TRUE则是增加一个介于指定范围的条件，设置为FALSE则是增加一个不介于指定范围的条件。
-   * 
+   *
    * @return QueryCondition
    */
   public function between($field, array $between, $flag = TRUE) {
-    foreach ($between as $key => $value) {
-      $between[$key] = $this->parameter->add($field, $value);
-    }
-    $this->_current->condition($field, $between, ($flag ? self::BETWEEN : self::NOT_BETWEEN));
-    
+    $this->condition($field, $between, ($flag ? self::BETWEEN : self::NOT_BETWEEN));
+
     return $this;
   }
-  
+
   /**
    * 增加一个存在测试查询条件
    *
@@ -732,9 +573,8 @@ class QueryCondition implements IteratorAggregate, Countable {
    * @return QueryCondition
    */
   public function exists($field,  SelectQuery $query, $flag = TRUE) {
-    $query->end();
-    $this->_current->condition($field, $query, ($flag ? self::EXISTS : self::NOT_EXISTS));
-    
+    $this->condition($field, $query, ($flag ? self::EXISTS : self::NOT_EXISTS));
+
     return $this;
   }
 
@@ -748,69 +588,61 @@ class QueryCondition implements IteratorAggregate, Countable {
    */
   public function where($snippet, array $arguments = array()) {
     $this->_current->condition($snippet, $arguments, self::WHERE);
-    foreach ($arguments as $field => $value) {
-      $this->parameter[$field] = $value;
-    }
 
     return $this;
   }
 
   /**
-   * (non-PHPdoc)
+   *
    * @see IteratorAggregate::getIterator()
    */
   public function getIterator() {
     // TODO Auto-generated method stub
     return new ArrayIterator($this->conditions);
   }
-  
-  /**
-   * (non-PHPdoc)
-   * @see Countable::count()
-   */
+
   public function count() {
     // TODO Auto-generated method stub
     return $this->_count;
   }
-  
 }
 
 /**
  * 插入查询分析器
- * 
+ *
  * @author feng
  *
  */
 class InsertQuery extends Query {
-  
+
   /**
    * 数据字段
-   * 
+   *
    * @var array
    */
   protected $fields = array();
-  
+
   /**
    * 数据值
-   * 
+   *
    * @var array
    */
   protected $values = array();
-  
+
   /**
    * 默认数据
-   * 
+   *
    * @var array
    */
   protected $defaults = array();
-  
+
   /**
    * @var SelectQuery
    */
   protected $queryFrom;
-  
+
   /**
-   * (non-PHPdoc)
+   *
    * @see Query::masktype()
    */
   public function type() {
@@ -819,48 +651,48 @@ class InsertQuery extends Query {
   }
 
   /**
-   * (non-PHPdoc)
+   *
    * @see Query::name()
    */
   public function name() {
     return 'insert';
   }
-  
+
   /**
    * 设置插入查询字段
-   * 
+   *
    * @param array $fields
-   * 
+   *
    * @example
    *   $fields[] = 'field0';
    *   $fields[] = 'field1';
    *   $fields[] = 'field2';
-   * 
+   *
    * @return InsertQuery
    */
   public function fields(array $fields) {
     foreach ($fields as $field) {
       $this->fields[$field] = $field;
     }
-    
+
     return $this;
   }
-  
+
   /**
    * 设置插入数据
-   * 
+   *
    * @param array $values
-   * 
+   *
    * @example
    *   $values[] = 'value0';
    *   $values[] = 'value1';
    *   $values[] = 'value2';
-   *   
+   *
    * @example
    *   $values['field0'] = 'value0';
    *   $values['field1'] = 'value1';
    *   $values['field2'] = 'value2';
-   * 
+   *
    * @return InsertQuery
    */
   public function values(array $values) {
@@ -871,11 +703,11 @@ class InsertQuery extends Query {
     if (is_numeric(key($values))) {
       foreach ($this->fields as $field) {
         if (list($key, $value) = each($values)) {
-          $insert_values[$field] = $this->parameter->add($field, $value);
+          $insert_values[$field] = $value;
         }
         else {
           $value = isset($this->defaults[$field]) ? $this->defaults[$field] : NULL;
-          $insert_values[$field] = $this->parameter->add($field, $value);
+          $insert_values[$field] = $value;
         }
       }
       $this->values[] = $insert_values;
@@ -884,19 +716,19 @@ class InsertQuery extends Query {
       if (empty($this->fields)) {
         $this->fields(array_keys($values));
       }
-      
+
       foreach ($this->fields as $field) {
         $value = isset($values[$field]) ? $values[$field] : $this->defaults[$field];
-        $insert_values[$field] = $this->parameter->add($field, $value);
+        $insert_values[$field] = $value;
       }
-      
+
       $this->values[] = $insert_values;
     }
-    
+
     return $this;
   }
-  
-  
+
+
   /**
    * 使用默认字段值
    *
@@ -908,40 +740,40 @@ class InsertQuery extends Query {
         $this->fields[$field] = $field;
       }
     }
-    
+
     foreach ($this->values as $key => $values) {
       foreach ($defaultValues as $field => $value) {
         if (!isset($values[$field]))
-          $this->values[$key][$field] = $this->parameter->add($field, $value);
+          $this->values[$key][$field] = $value;
       }
     }
-    
+
     $this->defaults = $defaultValues;
   }
-  
+
   /**
    * 设置插入查询分析器的数据
-   * 
+   *
    * @param SelectQuery $query
-   * 
+   *
    * @return Query
    */
   public function from(SelectQuery $query) {
     $this->queryFrom = $query;
-    
+
     return $this;
   }
-  
+
   /**
    * 获取插入字段
-   * 
+   *
    * @return array
    */
   final public function &getFields() {
     // 返回标准field=>masktype字段数组
     return $this->fields;
   }
-  
+
   /**
    * 获取插入值
    *
@@ -951,165 +783,150 @@ class InsertQuery extends Query {
     // 返回标准field=>value值数组
     return $this->values;
   }
-  
+
   /**
    * 获取查询数据分析器
-   * 
+   *
    * @return SelectQuery
    */
   final public function select() {
     return $this->queryFrom;
   }
-
-  /**
-   * (non-PHPdoc)
-   * @see Query::end()
-   */
-  public function end() {
-    // TODO Auto-generated method stub
-    $this->end = TRUE;
-    
-    return $this;
-  }
 }
 
 /**
  * 唯一插入查询
- * 
+ *
  * @author realeff
  *
  */
 class UniqueInsertQuery extends Query {
-  
+
   /**
    * 唯一关键字数据
-   * 
+   *
    * @var array
    */
   protected $keys = array();
-  
+
   /**
    * 插入字段数据
-   * 
+   *
    * @var array
    */
   protected $insertFields = array();
-  
+
   /**
    * 更新字段数据
-   * 
+   *
    * @var array
    */
   protected $updateFields = array();
-  
+
   /**
    * 更新这些字段数据所使用的表达式参数。
-   * 
+   *
    * @var array
    */
   protected $arguments = array();
-  
+
 
   /**
-   * (non-PHPdoc)
+   *
    * @see InsertQuery::type()
    */
   public function type() {
     // TODO Auto-generated method stub
     return Query::UNIQUEINSERT;
   }
-  
+
   /**
-   * (non-PHPdoc)
+   *
    * @see Query::name()
    */
   public function name() {
     return 'uniqueinsert';
   }
-  
+
   /**
    * 数据主键或唯一键值
-   * 
+   *
    * @param string $field
    * @param mixed $value
-   * 
+   *
    * @return UniqueInsertQuery
    */
   public function key($field, $value) {
-    $this->keys[$field] = $field;
-    $this->parameter[$field] = $value;
-    
+    $this->keys[$field] = $value;
+
     return $this;
   }
-  
+
   /**
    * 数据主键或唯一键值集
-   * 
+   *
    * @param array $fields
    * @param array $values
-   * 
+   *
    * @return UniqueInsertQuery
    */
   public function keys(array $fields, array $values = array()) {
     if ($values) {
       $fields = array_combine($fields, $values);
     }
-    
+
     foreach ($fields as $field => $value) {
-      $this->keys[$field] = $field;
-      $this->parameter[$field] = $value;
+      $this->keys[$field] = $value;
     }
-    
+
     return $this;
   }
-  
+
   /**
    * 获取唯一字段数据
-   * 
+   *
    * @return array
    */
   public function &getKeys() {
     return $this->keys;
   }
-  
+
   /**
    * 增加一个字段数据
-   * 
+   *
    * @param string $field
    * @param mixed $value
-   * 
+   *
    * @return UniqueInsertQuery
    */
   public function field($field, $value) {
-    $this->insertFields[$field] = $field;
-    $this->updateFields[$field] = $field;
-    $this->parameter[$field] = $value;
-    
+    $this->insertFields[$field] = $value;
+    $this->updateFields[$field] = $value;
+
     return $this;
   }
-  
+
   /**
    * 增加一组字段数据
-   * 
+   *
    * @param array $fields
    * @param array $values
-   * 
+   *
    * @return UniqueInsertQuery
    */
   public function fields(array $fields, array $values = array()) {
     if ($values) {
       $fields = array_combine($fields, $values);
     }
-    
+
     foreach ($fields as $field => $value) {
-      $this->insertFields[$field] = $field;
-      $this->updateFields[$field] = $field;
-      $this->parameter[$field] = $value;
+      $this->insertFields[$field] = $value;
+      $this->updateFields[$field] = $value;
     }
-    
+
     return $this;
   }
-  
+
   /**
    * 增加一个插入字段数据
    *
@@ -1119,11 +936,11 @@ class UniqueInsertQuery extends Query {
    * @return UniqueInsertQuery
    */
   public function insertField($field, $value) {
-    $this->insertFields[$field] = $this->parameter->add($field, $value);
-    
+    $this->insertFields[$field] = $value;
+
     return $this;
   }
-  
+
   /**
    * 增加一组插入字段数据
    *
@@ -1136,23 +953,23 @@ class UniqueInsertQuery extends Query {
     if ($values) {
       $fields = array_combine($fields, $values);
     }
-    
+
     foreach ($fields as $field => $value) {
-      $this->insertFields[$field] = $this->parameter->add($field, $value);
+      $this->insertFields[$field] = $value;
     }
-    
+
     return $this;
   }
-  
+
   /**
    * 获取插入字段数据
-   * 
+   *
    * @return array
    */
   public function &getInsertFields() {
     return $this->insertFields;
   }
-  
+
   /**
    * 使用默认字段值
    *
@@ -1161,12 +978,11 @@ class UniqueInsertQuery extends Query {
   public function useDefaults(array $defaultValues) {
     foreach ($defaultValues as $field => $value) {
       if (!isset($this->insertFields[$field])) {
-        $this->insertFields[$field] = $field;
-        $this->parameter[$field] = $value;
+        $this->insertFields[$field] = $value;
       }
     }
   }
-  
+
   /**
    * 增加一个更新字段数据
    *
@@ -1176,11 +992,11 @@ class UniqueInsertQuery extends Query {
    * @return UniqueInsertQuery
    */
   public function updateField($field, $value) {
-    $this->updateFields[$field] = $this->parameter->add($field, $value);
-    
+    $this->updateFields[$field] = $value;
+
     return $this;
   }
-  
+
   /**
    * 增加一组更新字段数据
    *
@@ -1193,128 +1009,112 @@ class UniqueInsertQuery extends Query {
     if ($values) {
       $fields = array_combine($fields, $values);
     }
-    
+
     foreach ($fields as $field => $value) {
-      $this->updateFields[$field] = $this->parameter->add($field, $value);
+      $this->updateFields[$field] = $value;
     }
-    
+
     return $this;
   }
-  
+
   /**
    * 获取更新字段数据
-   * 
+   *
    * @return array
    */
   public function &getUpdateFields() {
     return $this->updateFields;
   }
-  
+
   /**
    * 增加一个更新表达式数据
-   * 
+   *
    * @param string $field
    * @param string $expression
    * @param array $arguments
-   * 
+   *
    * @example
    *   表达式数据: $fields[$field] = array('expression' => $expression, $arg0, $arg1, $arg2);
-   * 
+   *
    * @return UniqueInsertQuery
    */
   public function updateExpression($field, $expression, array $arguments = array()) {
     $this->updateFields[$field] = '('. $expression .')';
     $this->arguments[$field] = $arguments;
-    foreach ($arguments as $field => $value) {
-      $this->parameter[$field] = $value;
-    }
-    
+
     return $this;
   }
-  
+
   /**
    * 获取表达式参数
-   * 
+   *
    * @return array
    */
   final public function &getArguments() {
     return $this->arguments;
   }
-
-  /**
-   * (non-PHPdoc)
-   * @see InsertQuery::end()
-   */
-  public function end() {
-    // TODO Auto-generated method stub
-    $this->end = TRUE;
-    
-    return $this;
-  }
-  
 }
 
 /**
  * 更新查询分析器
- * 
+ *
  * @author feng
  *
  */
 class UpdateQuery extends Query {
-  
+
   /**
    * 更新这些字段数据，数据可以是一个值，也可以是一个表达式。
    * @example
    *   键值配对数据: $fields[$field] = $value;
    *   表达式数据: $fields[$field] = array('expression', $arg0, $arg1, $arg2);
-   * 
+   *
    * @var array
    */
   protected $fields = array();
-  
+
   /**
    * 更新这些字段数据所使用的表达式参数。
-   * 
+   *
    * @var array
    */
   protected $arguments = array();
-  
+
   /**
    * 更新过滤条件
-   * 
+   *
    * @var QueryCondition
    */
   protected $condition;
-  
+
   /**
    * 构造一个更新查询
-   * 
+   *
    * @param string $table
-   * @param QueryParameter $parameter
    */
-  public function __construct($table, QueryParameter $parameter) {
-    parent::__construct($table, $parameter);
-    
-    $this->condition = new QueryCondition($this->parameter, $this);
+  public function __construct($table) {
+    parent::__construct($table);
+
+    $this->condition = new QueryCondition();
   }
-  
+
   /**
-   * (non-PHPdoc)
+   *
    * @see Query::masktype()
    */
   public function type() {
     // TODO Auto-generated method stub
     return Query::UPDATE;
   }
-  
+
   /**
-   * (non-PHPdoc)
+   *
    * @see Query::name()
    */
   public function name() {
     return 'update';
   }
-  
+
   /**
    * 增加一个字段数据
    *
@@ -1323,70 +1123,65 @@ class UpdateQuery extends Query {
    *
    * @example
    *   键值配对数据: $value = 'stand_value';
-   *   
+   *
    * @return UpdateQuery
    */
   public function field($field, $value) {
-    $this->fields[$field] = $field;
-    $this->parameter[$field] = $value;
-    
+    $this->fields[$field] = $value;
+
     return $this;
   }
-  
+
   /**
    * 增加一组字段数据
-   * 
+   *
    * @param array $fields
-   * 
+   *
    * @example
    *   键值配对数据: $fields[$field] = $value;
-   *   
+   *
    * @return UpdateQuery
    */
   public function fields(array $fields, array $values = array()) {
     if ($values) {
       $fields = array_combine($fields, $values);
     }
-    
+
     foreach ($fields as $field => $value) {
-      $this->fields[$field] = $field;
-      $this->parameter[$field] = $value;
+      $this->fields[$field] = $value;
     }
-    
+
     return $this;
   }
-  
+
   /**
    * 增加一个表达式数据
-   * 
+   *
    * @param string $field
    * @param string $expression
    * @param array $arguments
-   * 
+   *
    * @example
    *   表达式数据: $fields[$field] = array('expression' => $expression, $arg0, $arg1, $arg2);
-   * 
+   *
    * @return UpdateQuery
    */
   public function expression($field, $expression, array $arguments = array()) {
     $this->fields[$field] = '('. $expression .')';
     $this->arguments[$field] = $arguments;
-    foreach ($arguments as $field => $value) {
-      $this->parameter[$field] = $value;
-    }
-    
+
     return $this;
   }
 
   /**
    * 更新查询条件
-   * 
+   *
    * @return QueryCondition
    */
   public function where() {
     return $this->condition;
   }
-  
+
   /**
    * 获取更新字段
    *
@@ -1396,69 +1191,52 @@ class UpdateQuery extends Query {
     // 返回标准field=>value字段数组
     return $this->fields;
   }
-  
+
   /**
    * 获取表达式参数
-   * 
+   *
    * @return array
    */
   final public function &getArguments() {
     return $this->arguments;
   }
-
-  /**
-   * (non-PHPdoc)
-   * @see Query::end()
-   */
-  public function end() {
-    // TODO Auto-generated method stub
-    if (!$this->end) {
-      $this->condition->end();
-      
-      $this->end = TRUE;
-    }
-    
-    return $this;
-  }
-  
 }
 
 /**
  * 删除查询分析器
- * 
+ *
  * @author feng
  *
  */
 class DeleteQuery extends Query {
-  
+
   /**
    * @var QueryCondition
    */
   protected $condition;
-  
+
   /**
    * 构造一个插入查询
-   * 
+   *
    * @param string $table
-   * @param QueryParameter $parameter
    */
-  public function __construct($table, QueryParameter $parameter) {
-    parent::__construct($table, $parameter);
-    
-    $this->condition = new QueryCondition($this->parameter, $this);
+  public function __construct($table) {
+    parent::__construct($table);
+
+    $this->condition = new QueryCondition();
   }
-  
+
   /**
-   * (non-PHPdoc)
+   *
    * @see Query::masktype()
    */
   public function type() {
     // TODO Auto-generated method stub
     return Query::DELETE;
   }
-  
+
   /**
-   * (non-PHPdoc)
+   *
    * @see Query::name()
    */
   public function name() {
@@ -1467,154 +1245,138 @@ class DeleteQuery extends Query {
 
 /**
    * 删除查询条件
-   * 
+   *
    * @return QueryCondition
    */
   public function where() {
     return $this->condition;
   }
-
-  /**
-   * (non-PHPdoc)
-   * @see Query::end()
-   */
-  public function end() {
-    // TODO Auto-generated method stub
-    if (!$this->end) {
-      $this->condition->end();
-      
-      $this->end = TRUE;
-    }
-    
-    return $this;
-  }
-
 }
 
 /**
  * 关系数据筛选查询接口
- * 
+ *
  * @author feng
  *
  */
 interface MultiSelectQueryInterface {
-  
+
   /**
    * 获取数据表别名
    *
    * @return string
    */
   public function getAlias();
-  
+
   /**
-   * 
-   * 
+   *
+   *
    * @param string $table_alias
    * @param string $field
    * @param string $alias
-   * 
+   *
    * @return MultiSelectQueryInterface
    */
   public function addField($table_alias, $field, $alias = NULL);
-  
+
   /**
-   * 
-   * 
+   *
+   *
    * @param string $table_alias
    * @param array $fields
-   * 
+   *
    * @return MultiSelectQueryInterface
    */
   public function addFields($table_alias, array $fields);
-  
+
   /**
-   * 
-   * 
+   *
+   *
    * @param string $masktype
    * @param string $table
    * @param string $alias
    * @param string $where
    * @param array $arguments
-   * 
+   *
    * @return MultiSelectQueryInterface
    */
   public function join($type, $table, $alias, $condition, array $arguments = array());
-  
+
   /**
-   * 
+   *
    * @return array
    */
   public function &getJoins();
-  
+
   /**
-   * 
-   * 
+   *
+   *
    * @param string $table
    * @param string $alias
    * @param string $where
    * @param array $arguments
-   * 
+   *
    * @return MultiSelectQueryInterface
    */
   public function innerJoin($table, $alias, $condition, array $arguments = array());
-  
+
   /**
-   * 
-   * 
+   *
+   *
    * @param string $table
    * @param string $alias
    * @param string $where
    * @param array $arguments
-   * 
+   *
    * @return MultiSelectQueryInterface
    */
   public function leftJoin($table, $alias, $condition, array $arguments = array());
-  
+
   /**
-   * 
-   * 
+   *
+   *
    * @param string $table
    * @param string $alias
    * @param string $where
    * @param array $arguments
-   * 
+   *
    * @return MultiSelectQueryInterface
    */
   public function rightJoin($table, $alias, $condition, array $arguments = array());
-  
+
   /**
-   * 
-   * 
+   *
+   *
    * @param string $table
    * @param string $alias
    * @param string $where
    * @param array $arguments
-   * 
+   *
    * @return MultiSelectQueryInterface
    */
   public function fullJoin($table, $alias, $condition, array $arguments = array());
-  
+
   /**
-   * 
-   * 
+   *
+   *
    * @param SelectQuery $query
-   * 
+   *
    * @return MultiSelectQueryInterface
    */
   public function union(SelectQuery $query);
-  
+
   /**
-   * 
-   * 
+   *
+   *
    * @param SelectQuery $query
-   * 
+   *
    * @return MultiSelectQueryInterface
    */
   public function unionAll(SelectQuery $query);
-  
+
   /**
-   * 
-   * 
+   *
+   *
    * @return array
    */
   public function &getUnions();
@@ -1622,7 +1384,7 @@ interface MultiSelectQueryInterface {
 
 /**
  * 筛选查询分析器
- * 
+ *
  * @author feng
  *
  */
@@ -1631,34 +1393,34 @@ class SelectQuery extends Query {
    * 升序排序
    */
   const ASC = 0;
-  
+
   /**
    * 降序排序
    */
   const DESC = 1;
-  
+
   /**
    * 随机排序
    */
   const RANDOM = 2;
-  
+
   /**
    * 查询这些字段数据，数据可以是一个值，也可以是一个表达式。
    * @example
    *   键值配对数据: $fields[$field] = $value;
    *   表达式数据: $fields[$field] = array('expression', $arg0, $arg1, $arg2);
-   * 
+   *
    * @var array
    */
   protected $fields = array();
-  
+
   /**
    * 更新这些字段数据所使用的表达式参数。
-   * 
+   *
    * @var array
    */
   protected $arguments = array();
-  
+
   /**
    * 查询过滤条件
    *
@@ -1680,70 +1442,55 @@ class SelectQuery extends Query {
    * @var array
    */
   protected $orders = array();
-  
+
   /**
    * @var array
    */
   protected $limit = array();
-  
+
   /**
-   * 检索唯一数据
+   * 特殊查询标识
    *
-   * @var boolean
+   * @var array
    */
-  protected $distinct = FALSE;
-  
-  /**
-   * 新更新数据
-   * 
-   * @var boolean
-   */
-  protected $forUpdate = FALSE;
-  
-  /**
-   * 按条件检索计数
-   * 
-   * @var boolean
-   */
-  protected $forCount = FALSE;
-  
+  protected $flags = array();
+
   /**
    * 构造一个筛选查询
-   * 
+   *
    * @param string $table 数据表
-   * @param QueryParameter $parameter
    */
-  public function __construct($table, QueryParameter $parameter) {
-    parent::__construct($table, $parameter);
-    
-    $this->condition = new QueryCondition($this->parameter, $this);
-    $this->having = new QueryCondition($this->parameter, $this);
+  public function __construct($table) {
+    parent::__construct($table);
+
+    $this->condition = new QueryCondition();
+    $this->having = new QueryCondition();
   }
-  
+
   /**
-   * (non-PHPdoc)
+   *
    * @see Query::masktype()
    */
   public function type() {
     // TODO Auto-generated method stub
     return Query::SELECT;
   }
-  
+
   /**
-   * (non-PHPdoc)
+   *
    * @see Query::name()
    */
   public function name() {
     return 'select';
   }
-  
-  
+
+
   /**
    * 添加一个查询字段
-   * 
+   *
    * @param string $field 字段
    * @param string $alias 别名
-   * 
+   *
    * @return SelectQuery
    */
   public function field($field, $alias = NULL) {
@@ -1753,15 +1500,15 @@ class SelectQuery extends Query {
     else {
       $this->fields[$alias] = $field;
     }
-    
+
     return $this;
   }
-  
+
   /**
    * 添加一组查询字段
-   * 
+   *
    * @param array $fields 以field => alias组成的字段数组
-   * 
+   *
    * @return SelectQuery
    */
   public function fields(array $fields) {
@@ -1773,98 +1520,79 @@ class SelectQuery extends Query {
         $this->fields[$alias] = $field;
       }
     }
-    
+
     return $this;
   }
-  
+
   /**
    * 添加一个表达式查询字段
-   * 
+   *
    * @param string $expression 表达式
    * @param string $alias 别名
    * @param array $arguments 表达式参数
-   * 
+   *
    * @return SelectQuery
    */
   public function expression($expression, $alias, array $arguments = array()) {
     // 表达式字符默认给第一个字符加上左括号(，最后一个字符加上右括号)，其字符默认存放在fields中。
     $this->fields[$alias] = '('. $expression .')';
     $this->arguments[$alias] = $arguments;
-    foreach ($arguments as $field => $value) {
-      $this->parameter[$field] = $value;
-    }
-    
+
     return $this;
   }
-  
+
   /**
    * 获取表达式参数
-   * 
+   *
    * @return array
    */
   final public function &getArguments() {
     return $this->arguments;
   }
-  
+
   /**
    * 获取查询字段数组
-   * 
+   *
    * @return array
    */
   final public function &getFields() {
     return $this->fields;
   }
-  
-  /**
-   * (non-PHPdoc)
-   * @see Query::end()
-   */
-  public function end() {
-    // TODO Auto-generated method stub
-    if (!$this->end) {
-      $this->condition->end();
-      $this->having->end();
-      
-      $this->end = TRUE;
-    }
-    
-    return $this;
-  }
-  
+
   /**
    * 筛选查询条件
-   * 
+   *
    * @return QueryCondition
    */
   public function where() {
     return $this->condition;;
   }
-  
+
   /**
    * 分组查询
-   * 
+   *
    * @param string $field
-   * 
+   *
    * @return SelectQuery
    */
   public function groupBy($field) {
     $this->groups[$field] = $field;
-    
+
     return $this;
   }
-  
+
   /**
    * 获取分组字段
-   * 
+   *
    * @return array
    */
   final public function &getGroups() {
     return $this->groups;
   }
-  
+
   /**
    * Group分组筛选条件
-   * 
+   *
    * @return QueryCondition
    */
   public function having() {
@@ -1887,160 +1615,147 @@ class SelectQuery extends Query {
 
     return $this;
   }
-  
+
   /**
    * 获取排序字段
-   * 
+   *
    * @return array
    */
   final public function &getOrders() {
     return $this->orders;
   }
-  
+
   /**
    * 限制查询结果数量
-   * 
+   *
    * @param int $offset
    * @param int $row_count
-   * 
+   *
    * @return SelectQuery
    */
   final public function limit($offset = 0, $row_count = 30) {
     $this->limit = array($offset, $row_count);
-    
+
     return $this;
   }
-  
+
   /**
    * 获取查询结果数量限量
-   * 
+   *
    * @return array
    */
   final public function &getLimit() {
     return $this->limit;
   }
-  
+
   /**
    * 设置唯一数据标识
-   * 
+   *
    * @param boolean $distinct
-   * 
+   *
    * @return SelectQuery
    */
   final public function distinct($distinct = TRUE) {
-    $this->distinct = $distinct;
-    
+    $this->flags['distinct'] = $distinct;
+
     return $this;
   }
-  
-  /**
-   * 获取唯一数据标识
-   * 
-   * @return boolean
-   */
-  final public function getDistinct() {
-    return $this->distinct;
-  }
-  
+
   /**
    * 设置获取新更新数据
-   * 
+   *
    * @param boolean $flag
-   * 
+   *
    * @return SelectQuery
    */
   final public function forUpdate($flag = TRUE) {
-    $this->forUpdate = $flag;
-    
+    $this->flags['update'] = $flag;
+
     return $this;
   }
-  
-  /**
-   * 获取新更新数据标识
-   * 
-   * @return boolean
-   */
-  final public function getUpdate() {
-    return $this->forUpdate;
-  }
-  
+
   /**
    * 设置查询计数
-   * 
+   *
    * @param boolean $flag
-   * 
+   *
    * @return SelectQuery
    */
-  final public function forCount($flag = TRUE) {
-    $this->forCount = $flag;
-    
+  final public function count($flag = TRUE) {
+    $this->flags['count'] = $flag;
+
     return $this;
   }
-  
+
   /**
-   * 获取查询计数标识
-   * 
-   * @return boolean
+   * 获取特殊查询标识
+   *
+   * @param string $name 标识名称
+   *
+   * @return mixed
    */
-  final public function getFlagCount() {
-    return $this->forCount;
+  final public function getFlags($name = NULL) {
+    if (isset($name)) {
+      return isset($this->flags[$name]) ? $this->flags[$name] : FALSE;
+    }
+
+    return $this->flags;
   }
 }
 
 
 class MultiSelectQuery extends SelectQuery implements MultiSelectQueryInterface {
-  
+
   /**
    * 数据表别名
    *
    * @var string
    */
   protected $table_alias;
-  
+
   /**
-   * 
+   *
    * @var array
    */
   protected $joins = array();
-  
+
   /**
    *
    * @var array
    */
   protected $unions = array();
-  
+
   /**
-   * 
+   *
    * @param string $table
    * @param string $alias
-   * @param QueryParameter $parameter
    */
-  public function __construct($table, $alias, QueryParameter $parameter) {
+  public function __construct($table, $alias) {
     // TODO Auto-generated method stub
-    parent::__construct($table, $parameter);
-    
+    parent::__construct($table);
+
     $this->table_alias = $alias;
   }
-  
+
   /**
-   * (non-PHPdoc)
+   *
    * @see Query::masktype()
    */
   public function type() {
     // TODO Auto-generated method stub
     return Query::MULTISELECT;
   }
-  
+
   /**
-   * (non-PHPdoc)
+   *
    * @see Query::name()
    */
   public function name() {
     return 'multiselect';
   }
-  
+
   /**
-   * (non-PHPdoc)
+   *
    * @see MultiSelectQueryInterface::getAlias()
    */
   final public function getAlias() {
@@ -2048,7 +1763,7 @@ class MultiSelectQuery extends SelectQuery implements MultiSelectQueryInterface 
   }
 
   /**
-   * (non-PHPdoc)
+   *
    * @see MultiSelectQueryInterface::addField()
    */
   public function addField($table_alias, $field, $alias = NULL) {
@@ -2058,7 +1773,7 @@ class MultiSelectQuery extends SelectQuery implements MultiSelectQueryInterface 
     }
     else if (isset($this->joins[$table_alias])) {
       $join_fields = &$this->joins[$table_alias]['fields'];
-      
+
       if (empty($alias)) {
         $join_fields[$field] = $field;
       }
@@ -2066,12 +1781,12 @@ class MultiSelectQuery extends SelectQuery implements MultiSelectQueryInterface 
         $join_fields[$alias] = $field;
       }
     }
-    
+
     return $this;
   }
-  
+
   /**
-   * (non-PHPdoc)
+   *
    * @see MultiSelectQueryInterface::addFields()
    */
   public function addFields($table_alias, array $fields) {
@@ -2081,7 +1796,7 @@ class MultiSelectQuery extends SelectQuery implements MultiSelectQueryInterface 
     }
     else if (isset($this->joins[$table_alias])) {
       $join_fields = &$this->joins[$table_alias]['fields'];
-      
+
       foreach ($fields as $field => $alias) {
         if (is_numeric($field)) {
           $join_fields[$alias] = $alias;
@@ -2091,20 +1806,16 @@ class MultiSelectQuery extends SelectQuery implements MultiSelectQueryInterface 
         }
       }
     }
-    
+
     return $this;
   }
 
 /**
-   * (non-PHPdoc)
+   *
    * @see MultiSelectQueryInterface::join()
    */
   public function join($type, $table, $alias, $condition, array $arguments = array()) {
     // TODO Auto-generated method stub
-    if ($table instanceof SelectQuery) {
-      $table->end();
-    }
-    
     $this->joins[$alias] = array(
         'masktype' => $type,
         'table' => $table,
@@ -2113,13 +1824,10 @@ class MultiSelectQuery extends SelectQuery implements MultiSelectQueryInterface 
         'where' => $condition,
         'arguments' => $arguments
       );
-    foreach ($arguments as $field => $value) {
-      $this->parameter[$field] = $value;
-    }
   }
 
   /**
-   * (non-PHPdoc)
+   *
    * @see MultiSelectQueryInterface::getJoins()
    */
   public function &getJoins() {
@@ -2128,88 +1836,134 @@ class MultiSelectQuery extends SelectQuery implements MultiSelectQueryInterface 
   }
 
   /**
-   * (non-PHPdoc)
+   *
    * @see MultiSelectQueryInterface::fullJoin()
    */
   public function fullJoin($table, $alias, $condition, array $arguments = array()) {
     // TODO Auto-generated method stub
     $this->join('FULL', $table, $alias, $condition, $arguments);
-    
+
     return $this;
   }
 
   /**
-   * (non-PHPdoc)
+   *
    * @see MultiSelectQueryInterface::innerJoin()
    */
   public function innerJoin($table, $alias, $condition, array $arguments = array()) {
     // TODO Auto-generated method stub
     $this->join('INNER', $table, $alias, $condition, $arguments);
-    
+
     return $this;
   }
 
   /**
-   * (non-PHPdoc)
+   *
    * @see MultiSelectQueryInterface::leftJoin()
    */
   public function leftJoin($table, $alias, $condition, array $arguments = array()) {
     // TODO Auto-generated method stub
     $this->join('LEFT', $table, $alias, $condition, $arguments);
-    
+
     return $this;
   }
 
   /**
-   * (non-PHPdoc)
+   *
    * @see MultiSelectQueryInterface::rightJoin()
    */
   public function rightJoin($table, $alias, $condition, array $arguments = array()) {
     // TODO Auto-generated method stub
     $this->join('RIGHT', $table, $alias, $condition, $arguments);
-    
+
     return $this;
   }
 
   /**
-   * (non-PHPdoc)
+   *
    * @see MultiSelectQueryInterface::union()
    */
   public function union(SelectQuery $query) {
     // TODO Auto-generated method stub
-    $query->end();
     $this->unions[] = array(
         'query' => $query,
         'masktype' => 'DISTINCT'
         );
-    
+
     return $this;
   }
 
   /**
-   * (non-PHPdoc)
+   *
    * @see MultiSelectQueryInterface::unionAll()
    */
   public function unionAll(SelectQuery $query) {
     // TODO Auto-generated method stub
-    $query->end();
     $this->unions[] = array(
         'query' => $query,
         'masktype' => 'ALL'
         );
-    
+
     return $this;
   }
 
   /**
-   * (non-PHPdoc)
+   *
    * @see MultiSelectQueryInterface::getUnions()
    */
   public function &getUnions() {
     // TODO Auto-generated method stub
     return $this->unions;
   }
-  
+
 }
 
+/**
+ * 执行查询并将结果放入临时表
+ *
+ * @author realeff
+ *
+ */
+class TemporaryQuery extends Query {
 
+  /**
+   *
+   * @var SelectQuery
+   */
+  protected $query;
+
+  public function __construct($table, SelectQuery $query) {
+    parent::__construct($table);
+
+    $this->query = $query;
+  }
+
+  /**
+   * 获取数据查询器
+   *
+   * @return SelectQuery
+   */
+  public function select() {
+    return $this->query;
+  }
+
+  /**
+   *
+   * @see Query::name()
+   */
+  public function name() {
+    // TODO Auto-generated method stub
+    return 'temporary';
+  }
+
+
+  /**
+   *
+   * @see Query::type()
+   */
+  public function type() {
+    // TODO Auto-generated method stub
+    return Query::TEMPORARY;
+  }
+
+}

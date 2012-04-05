@@ -41,20 +41,20 @@ defined('STORE_DRIVER_PATH') or die;
 
 
 class StoreDatabase_mysql extends StoreDatabase  {
-  
-  
+
+
   protected $dsn;
   protected $username;
   protected $password;
   protected $dbname;
-  
+
   /**
    * 构造一个MYSQL链接
    * @param array $options
    */
   public function __construct(array $options) {
     parent::__construct($options);
-    
+
     // The DSN should use either a socket or a host/port.
     if (isset($options['unix_socket'])) {
       //$dsn = 'mysql:unix_socket=' . $conn_options['unix_socket'];
@@ -73,25 +73,26 @@ class StoreDatabase_mysql extends StoreDatabase  {
     $this->password = $options['password'];
     //$dsn .= ';dbname=' . $conn_options['dbname'];
     $this->dbname = $options['dbname'];
-    
+
     // 注册查询语句分析器
     $this->registerAnalyzer(new SQLSelectAnalyzer());
     $this->registerAnalyzer(new SQLInsertAnalyzer_mysql());
     $this->registerAnalyzer(new SQLUpdateAnalyzer());
     $this->registerAnalyzer(new SQLDeleteAnalyzer());
     $this->registerAnalyzer(new SQLUniqueInsertAnalyzer_mysql());
+    $this->registerAnalyzer(new SQLTemporaryAnalyzer());
   }
-  
+
   /**
-   * (non-PHPdoc)
+   *
    * @see RelationDatabase::driver()
    */
   public function driver() {
     // TODO Auto-generated method stub
     return 'mysql';
   }
-  
-  /* (non-PHPdoc)
+
+  /*
  * @see RelationDatabase::version()
  */
   public function version() {
@@ -101,18 +102,18 @@ class StoreDatabase_mysql extends StoreDatabase  {
   }
 
   /**
-   * (non-PHPdoc)
+   *
    * @see StoreDatabase::open()
    */
   public function open() {
     // TODO Auto-generated method stub
     $this->resource = @mysql_connect($this->dsn, $this->username, $this->password, TRUE, MYSQL_NUM);
-    if (!$this->resource || !mysql_select_db($this->dbname)) {
+    if (!$this->resource || !mysql_select_db($this->dbname, $this->resource)) {
       // Show error screen otherwise
       //_db_error_page(mysql_error());
       return FALSE;
     }
-    
+
     if (!empty($this->options['collation'])) {
       mysql_query('SET NAMES "utf8" COLLATE "'. $this->options['collation'] .'"', $this->resource);
     }
@@ -120,12 +121,12 @@ class StoreDatabase_mysql extends StoreDatabase  {
       // Force UTF-8.
       mysql_query('SET NAMES "utf8"', $this->resource);
     }
-    
+
     return TRUE;
   }
-  
+
   /**
-   * (non-PHPdoc)
+   *
    * @see StoreDatabase::close()
    */
   public function close() {
@@ -134,25 +135,25 @@ class StoreDatabase_mysql extends StoreDatabase  {
   }
 
   /**
-   * (non-PHPdoc)
+   *
    * @see StoreDatabase::ping()
    */
   public function ping() {
     // TODO Auto-generated method stub
     return mysql_ping($this->resource);
   }
-  
+
   /**
-   * (non-PHPdoc)
+   *
    * @see StoreDatabase::errorCode()
    */
   public function errorCode() {
     // TODO Auto-generated method stub
     return mysql_errno($this->resource);
   }
-  
+
   /**
-   * (non-PHPdoc)
+   *
    * @see StoreDatabase::errorInfo()
    */
   public function errorInfo() {
@@ -161,7 +162,7 @@ class StoreDatabase_mysql extends StoreDatabase  {
   }
 
   /**
-   * (non-PHPdoc)
+   *
    * @see StoreDatabase::quote()
    */
   public function quote($value, $type = NULL) {
@@ -169,12 +170,12 @@ class StoreDatabase_mysql extends StoreDatabase  {
     if (!isset($type)) {
       $type = $this->dataType($value);
     }
-    
+
     switch ($type) {
       case self::PARAM_NULL:
         return "''";
-//       case self::PARAM_BOOL:
-//         return (bool)$value;
+      case self::PARAM_BOOL:
+        return $value ? '1' : '0';
 //       case self::PARAM_INT:
 //         return (int)$value;
 //       case self::PARAM_FLOAT:
@@ -190,22 +191,22 @@ class StoreDatabase_mysql extends StoreDatabase  {
       case self::PARAM_STR:
         return "'". mysql_real_escape_string($value, $this->resource) ."'";
     }
-    
+
     return $value;
   }
 
 
   /**
-   * (non-PHPdoc)
+   *
    * @see StoreDatabase::schema()
    */
   public function schema() {
     // TODO Auto-generated method stub
-    
+
   }
 
   /**
-   * (non-PHPdoc)
+   *
    * @see StoreDatabase::lastInsertId()
    */
   public function lastInsertId() {
@@ -214,23 +215,14 @@ class StoreDatabase_mysql extends StoreDatabase  {
   }
 
   /**
-   * (non-PHPdoc)
-   * @see StoreDatabase::prepare()
-   */
-  public function prepare(Query $query) {
-    // TODO Auto-generated method stub
-    return new StoreStatementDatabase_mysql($this, $query);
-  }
-
-  /**
-   * (non-PHPdoc)
+   *
    * @see StoreDatabase::affectedRows()
    */
   public function affectedRows() {
     // TODO Auto-generated method stub
     return mysql_affected_rows($this->resource);
   }
-  
+
   private function _exec($sql) {
     $result = mysql_query($sql, $this->resource);
     if (!$this->errorCode()) {
@@ -240,60 +232,30 @@ class StoreDatabase_mysql extends StoreDatabase  {
       return FALSE;
     }
   }
-  
+
   /**
-   * (non-PHPdoc)
+   *
    * @see StoreDatabase::execute()
    */
-  public function execute(Query $query) {
+  public function execute($sql, array $args = array()) {
     // TODO Auto-generated method stub
-    $analyzer = $this->analyzer($query);
-    // 检查分析器是否SQLAnalyzer
-    if (!($analyzer instanceof SQLAnalyzer)) {
-      return FALSE;
-    }
-    
-    $analyzer->setQuery($query);
-    $sql = (string)$analyzer;
-    $args = $analyzer->arguments();
-    $analyzer->clean();
     // 完成数据表前缀
-    $sql = $this->prefixTables($sql);
-    // 绑定参数数据
+    $this->prefixTables($sql, $args);
+    // 扩展数组参数
     $this->expandArguments($sql, $args);
-    // 绑定参数
+    // 绑定参数数据
     $this->bindArguments($sql, $args);
-    
+
     return $this->_exec($sql);
   }
 
   /**
-   * (non-PHPdoc)
-   * @see StoreDatabase::temporary()
+   *
+   * @see StoreDatabase::prepare()
    */
-  public function temporary($temporaryTable, SelectQuery $query) {
+  public function prepare($statement) {
     // TODO Auto-generated method stub
-    $analyzer = $this->analyzer($query);
-    // 检查分析器是否SQLAnalyzer
-    if (!($analyzer instanceof SQLAnalyzer)) {
-      return FALSE;
-    }
-    
-    $analyzer->setQuery($query);
-    $sql = (string)$analyzer;
-    $args = $analyzer->arguments();
-    $analyzer->clean();
-    
-    $sql = 'CREATE TEMPORARY TABLE {' . $temporaryTable . '} Engine=MEMORY '. $sql;
-    // 完成数据表前缀
-    $sql = $this->prefixTables($sql);
-    // 绑定参数数据
-    $this->expandArguments($sql, $args);
-    // 绑定参数
-    $this->bindArguments($sql, $args);
-    
-    return (bool)$this->_exec($sql);
+    return new StoreStatementDatabase_mysql($this, $statement);
   }
-
 }
 

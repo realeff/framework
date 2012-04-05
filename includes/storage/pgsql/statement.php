@@ -4,14 +4,7 @@ defined('STORE_DRIVER_PATH') or die;
 
 class StoreStatementDatabase_pgsql extends StoreStatementBase {
 
-  private $_index = 0;
-  
-  public function execute($args = array()) {
-    parent::execute($args);
-    
-    $this->_index = 0;
-  }
-  
+
 	/* (non-PHPdoc)
  * @see StoreStatementBase::fetchArray()
  */
@@ -40,7 +33,7 @@ class StoreStatementDatabase_pgsql extends StoreStatementBase {
     if ($this->result) {
       return pg_num_rows($this->result);
     }
-    
+
     return 0;
   }
 /* (non-PHPdoc)
@@ -59,7 +52,7 @@ class StoreStatementDatabase_pgsql extends StoreStatementBase {
   public function fetchField($index = 0) {
     // TODO Auto-generated method stub
     if ($this->result && pg_num_rows($this->result) > 0) {
-      
+
       $array = pg_fetch_row($this->result);
       return $array[$index];
     }
@@ -69,7 +62,7 @@ class StoreStatementDatabase_pgsql extends StoreStatementBase {
  */
   public function fetch() {
     // TODO Auto-generated method stub
-    
+
   }
 
 /* (non-PHPdoc)
@@ -91,5 +84,5 @@ class StoreStatementDatabase_pgsql extends StoreStatementBase {
       pg_free_result($this->result);
     }
   }
-  
+
 }
