@@ -1,36 +1,48 @@
+<!Doctype html>
+<html xmlns=http://www.w3.org/1999/xhtml>
+<head>
+  <meta http-equiv=Content-Type content="text/html;charset=utf-8">
+  <title>测试运行环境</title>
+</head>
+<body>
 <?php
-print memory_get_usage();
-define('REALEFF_DEBUG', TRUE);
+print memory_get_usage() .'<br>';
+ define('REALEFF_DEBUG', TRUE);
+// define('REALEFF_DEBUG_LOG', TRUE);
 define('REALEFF_ROOT', getcwd());
 // 装载引导程序
 include_once REALEFF_ROOT .'/includes/bootstrap.php';
 // 引导程序
 $basememory = memory_get_usage();
-realeff_bootstrap(REALEFF_BOOTSTRAP_FULL);
+realeff_bootstrap();
+// session_regenerate_id(TRUE);
+// session_id(realeff_hash_base64(uniqid(mt_rand(), TRUE)));
 
-$_ENV['timer'] = timer_read('bootstrap');
-echo "<pre style=\"border: 1px solid #000; margin: 0.5em;\">";
-var_dump($_ENV);
-echo "</pre>\n";
+$_ENV['timer'] = Realeff::timer_read('bootstrap');
+$_SESSION['bootstrap_timer'] = $_ENV['timer'];
+
+print $_ENV['timer'] .'<br>';
 
 //print htmlentities(var_export($_ENV, TRUE));
 $firstmemory = memory_get_usage();
 print $firstmemory-$basememory .'<br>';
 
+$_SESSION['bootstrap_memory'] = $firstmemory-$basememory;
 
-timer_start('test');
+$filters = array('test', 'cache', 'select');
+Realeff::timer_start('test');
 for ($i = 0; $i < 1000; $i++) {
   //variable_set('test'. $i, $i);
-  variable_get('test'. $i);
 }
-timer_stop('test');
-print timer_read('test') .'<br>';
+Realeff::timer_stop('test');
+print Realeff::timer_read('test') .'<br>';
 
 print memory_get_usage()-$firstmemory .'<br>';
 print memory_get_usage()-$basememory .'<br>';
 print memory_get_usage();
 
-
-
+?>
+</body>
+</html>
 
 
