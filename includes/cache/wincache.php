@@ -1,4 +1,5 @@
 <?php
+defined('CACHE_DRIVER_PATH') or die;
 
 class WincacheCache implements CacheInterface {
   
@@ -106,14 +107,4 @@ class WincacheCache implements CacheInterface {
     // TODO Auto-generated method stub
 
   }
-
-  /**
-   * (non-PHPdoc)
-   * @see Countable::count()
-   */
-  public function count() {
-    // TODO Auto-generated method stub
-
-  }
-
 }

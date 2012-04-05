@@ -1,4 +1,5 @@
 <?php
+defined('CACHE_DRIVER_PATH') or die;
 
 class MemcacheCache extends AbstractCache implements CacheInterface {
   
@@ -6,13 +7,8 @@ class MemcacheCache extends AbstractCache implements CacheInterface {
   
   protected $compress = 0;
   
-  protected $prefix;
-  
-  public function __construct(array $bin, array $options = array()) {
+  public function __construct($bin, array $options = array()) {
     parent::__construct($bin, $options);
-    
-    // 指定数据键名加密码。
-    $this->prefix = isset($options['prefix']) ? $options['prefix'] : substr($GLOBALS['auth_key'], 0, 8);
     
     // 连接选项
     $option = isset($options['option']) ? $options['option'] : array();
@@ -32,8 +28,8 @@ class MemcacheCache extends AbstractCache implements CacheInterface {
     
     $this->memcache = new Memcache;
     foreach ($servers as $weight => $server) {
-      $option['weight'] = $weight+1;
-      $server += $option;
+      $server = array_merge($option, $server);
+      empty($server['weight']) && ($server['weight'] =  $weight + 1);
       
       $this->memcache->addServer($server['host'], $server['port'], $server['persistent'],
           $server['weight'], $server['timeout'], $server['retry_interval'], $server['status']);
@@ -46,24 +42,13 @@ class MemcacheCache extends AbstractCache implements CacheInterface {
     }
   }
   
-  protected function prifixKey($key) {
+  protected function prefixKey($key) {
     if (empty($key)) {
       return FALSE;
     }
     
     // 将key中含有“/\”字符转换为目录分隔符-，并清理字符 ? " ' % * 
-    $key = strtr($key, '/\\', '--');
-    $pieces = explode('-', $key, 2);
-    if (empty($pieces)) {
-      $pieces = array(reset($this->bin), $key);
-    }
-    else if (count($pieces) == 1) {
-      array_unshift($pieces, reset($this->bin));
-    }
-    // 加入键名前缀
-    array_unshift($pieces, $this->prefix);
-    
-    return implode('-', $pieces);
+    return $this->bin .'-'. strtr($key, '/\\', '--');
   }
 
   /**
@@ -72,7 +57,7 @@ class MemcacheCache extends AbstractCache implements CacheInterface {
    */
   public function delete($key) {
     // TODO Auto-generated method stub
-    $key = $this->prifixKey($key);
+    $key = $this->prefixKey($key);
     
     return $this->memcache->delete($key);
   }
@@ -101,7 +86,7 @@ class MemcacheCache extends AbstractCache implements CacheInterface {
    */
   public function get($key) {
     // TODO Auto-generated method stub
-    $key = $this->prifixKey($key);
+    $key = $this->prefixKey($key);
     
     return $this->memcache->get($key);
   }
@@ -114,7 +99,7 @@ class MemcacheCache extends AbstractCache implements CacheInterface {
     // TODO Auto-generated method stub
     $mkeys = array();
     foreach ($keys as $key) {
-      $mkeys[$this->prifixKey($key)] = $key;
+      $mkeys[$this->prefixKey($key)] = $key;
     }
 
     if ($items = $this->memcache->get(array_keys($mkeys))) {
@@ -135,7 +120,7 @@ class MemcacheCache extends AbstractCache implements CacheInterface {
    */
   public function increment($key, $offset = 1) {
     // TODO Auto-generated method stub
-    $key = $this->prifixKey($key);
+    $key = $this->prefixKey($key);
     
     return $this->memcache->increment($key, (int)$offset);
   }
@@ -146,7 +131,7 @@ class MemcacheCache extends AbstractCache implements CacheInterface {
    */
   public function decrement($key, $offset = 1) {
     // TODO Auto-generated method stub
-    $key = $this->prifixKey($key);
+    $key = $this->prefixKey($key);
     
     return $this->memcache->decrement($key, (int)$offset);
   }
@@ -168,7 +153,7 @@ class MemcacheCache extends AbstractCache implements CacheInterface {
    */
   public function set($key, $data, $lifetime = 0) {
     // TODO Auto-generated method stub
-    $key = $this->prifixKey($key);
+    $key = $this->prefixKey($key);
     
     return $this->memcache->set($key, $data, $this->compress, $lifetime > 0 ? $this->time + $lifetime : 0);
   }
@@ -186,5 +171,4 @@ class MemcacheCache extends AbstractCache implements CacheInterface {
     
     return $status;
   }
-
 }

@@ -1,4 +1,5 @@
 <?php
+defined('CACHE_DRIVER_PATH') or die;
 
 class MemcachedCache extends AbstractCache implements CacheInterface {
   
@@ -53,14 +54,9 @@ class MemcachedCache extends AbstractCache implements CacheInterface {
   
   protected $memcached;
   
-  protected $prefix;
   
-  
-  public function __construct(array $bin, array $options = array()) {
+  public function __construct($bin, array $options = array()) {
     parent::__construct($bin, $options);
-    
-    // 指定数据键名前缀。
-    $this->prefix = isset($options['prefix']) ? $options['prefix'] : substr($GLOBALS['auth_key'], 0, 8);
     
     // 连接选项
     $option = isset($options['option']) ? $options['option'] : array();
@@ -79,7 +75,7 @@ class MemcachedCache extends AbstractCache implements CacheInterface {
       $this->memcached->addServer($server['host'], $server['port'], $server['weight']);
     }
     // 设置键名前缀
-    $this->memcached->setOption(Memcached::OPT_PREFIX_KEY, $this->prefix);
+    $this->memcached->setOption(Memcached::OPT_PREFIX_KEY, $this->bin);
     
     foreach ($option as $key => $value) {
       if (isset($this->_options[$key])) {
@@ -187,5 +183,5 @@ class MemcachedCache extends AbstractCache implements CacheInterface {
     // TODO Auto-generated method stub
     return $this->memcached->setMulti($items, $lifetime > 0 ? $this->time + $lifetime : 0);
   }
-
+  
 }

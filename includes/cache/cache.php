@@ -1,8 +1,183 @@
 <?php
 
+/**
+ * 缓存储器驱动文件根路径
+ */
+define('CACHE_DRIVER_PATH', dirname(__FILE__));
 
-class Cache {
-  
+
+define('CACHE_BIN_DEFAULT', 'cache');
+
+
+/**
+ *
+ * @author realeff
+ *
+ */
+abstract class Cache {
+
+  /**
+   * 根据容器名称获取缓存储器
+   * $config['caches'] 缓存储器定义初始化
+   * 建立缓存设备连接，当使用缓存容器时激活缓存设备连接。
+   * 根据缓存容器及缓存储器数量配置命中
+   * Cache::getBin('cache')->
+   */
+
+  /**
+   * 链接缓存储器信息
+   *
+   * @var array
+   */
+  protected static $config = array();
+
+  /**
+   * 缓存处理程序
+   *
+   * @var array
+   */
+  protected static $handler = array();
+
+  /**
+   * 加载缓存处理器配置信息
+   */
+  protected static function loadConfig() {
+    self::$config = Realeff::getConfig('cache_handler', array());
+  }
+
+  /**
+   * 添加缓存配置信息
+   *
+   * @param string $bin
+   * @param array $config
+   */
+  public static function addConfig($bin, array $config) {
+    if (empty(self::$config[$bin])) {
+      self::$config[$bin] = $config;
+    }
+  }
+
+  /**
+   * 加载缓存驱动文件
+   *
+   * @param string $driver
+   */
+  protected static function loadDriver($driver) {
+    static $drivers = array();
+
+    if (isset($drivers[$driver])) {
+      return ;
+    }
+
+    $filename = CACHE_DRIVER_PATH ."/{$driver}.php";
+
+    if (file_exists($filename)) {
+      require_once $filename;
+    }
+
+    $drivers[$driver] = TRUE;
+  }
+
+  /**
+   * 获取缓存处理程序
+   *
+   * @param string $bin
+   * @param array $options
+   */
+  protected static function getHandler($bin, array $options) {
+
+    if (empty($options['driver']) ||
+          $options['driver'] == 'database' && !isset($_ENV['storage'])) {
+      $options['driver'] = 'file';
+    }
+    if ('database' == $options['driver'] && isset($_ENV['storage'])) {
+      store_querier_register(new CacheQuerier($bin));;
+    }
+
+    // 装载驱动
+    self::loadDriver($options['driver']);
+
+    // 实例化缓存储器
+    $class = ucfirst($options['driver']) .'Cache';
+    $cache = new $class($bin, $options);
+
+    // 日志功能
+
+    return $cache;
+  }
+
+  /**
+   * 取得缓存容器
+   *
+   * @param string $bin
+   *
+   * @return CacheInterface
+   */
+  public static function getBin($bin = CACHE_BIN_DEFAULT) {
+    if (empty(self::$config)) {
+      self::loadConfig();
+    }
+
+    // 如果缓存容器未配置存储器，则使用已开启的默认缓存器，或者使用文件存储器。
+    if (!isset(self::$config[$bin])) {
+      if (isset(self::$handler['cache'])) {
+        $bin = 'cache';
+      }
+      else {
+        self::$config[$bin] = array();
+      }
+    }
+
+    // 初始化缓存处理程序
+    if (!isset(self::$handler[$bin])) {
+      self::$handler[$bin] = self::getHandler($bin, self::$config[$bin]);
+    }
+
+    return self::$handler[$bin];
+  }
+
+  /**
+   * 移除缓存容器
+   * @param string $bin
+   *
+   * @return boolean
+   */
+  public static function removeBin($bin) {
+    if (!isset(self::$config[$bin])) {
+      return FALSE;
+    }
+
+    unset(self::$config[$bin]);
+    unset(self::$handler[$bin]);
+
+    return TRUE;
+  }
+
+  /**
+   * 清除所有缓存
+   */
+  public static function flush() {
+    $status = FALSE;
+
+    foreach (array_keys(self::$config) as $bin) {
+      $status |= self::getBin($bin)->flush();
+    }
+
+    return $status;
+  }
+
+  /**
+   * 销毁所有垃圾缓存
+   */
+  public static function gc() {
+    $status = FALSE;
+
+    foreach (array_keys(self::$config) as $bin) {
+      $status |= self::getBin($bin)->gc();
+    }
+
+    return $status;
+  }
 }
 
 
@@ -17,10 +192,10 @@ interface CacheInterface {
   /**
    * 构造器
    *
-   * @param array $bin 存储容器，每个存储器允许最多500个容器。
+   * @param string $bin 存储容器
    * @param array $options 存储参数
    */
-  public function __construct(array $bin, array $options = array());
+  public function __construct($bin, array $options = array());
 
   /**
    * 获取一个元素数据
@@ -49,7 +224,7 @@ interface CacheInterface {
    * @param mixed $data 存储数据
    * @param int $lifetime 生存期
    *
-   * @return bool
+   * @return boolean
    *   操作成功返回TRUE，失败返回FALSE。
    */
   public function set($key, $data, $lifetime = 0);
@@ -60,7 +235,7 @@ interface CacheInterface {
    * @param array $items 存放键/数据对数组
    * @param int $lifetime 生成期
    *
-   * @return bool
+   * @return boolean
    *   操作成功返回TRUE，失败返回FALSE。
    */
   public function setMulti(array $items, $lifetime = 0);
@@ -92,7 +267,7 @@ interface CacheInterface {
   /**
    * 删除一个元素数据
    *
-   * @return bool
+   * @return boolean
    *   成功时返回TRUE，或者在失败时返回FALSE。
    */
   public function delete($key);
@@ -100,7 +275,7 @@ interface CacheInterface {
   /**
    * 清除所有缓存数据
    *
-   * @return bool
+   * @return boolean
    *   成功时返回TRUE，或者在失败时返回FALSE。
    */
   public function flush();
@@ -113,74 +288,72 @@ interface CacheInterface {
   /**
    * 检查此缓存容器是否空的
    *
-   * @return bool
+   * @return boolean
    *   如果为空返回TRUE，否则返回FALSE。
    */
   public function isEmpty();
 }
 
 
+/**
+ * 提供一个缓存储器
+ *
+ * @author realeff
+ *
+ */
 abstract class AbstractCache {
-  
-  // 按ID范围或模数分表
-  // 按年月日时间分表
-  // 按首字符分表
-  // 按md5序列分表
-  // 按其它哈希算法分表
-  // 按指定字段值分表
-  const HASH_CRC32 = 0;
-  
-  const HASH_MD5 = 1;
-  
-  
+
   /**
-   * @var array
+   * @var string
    */
   protected $bin;
-  
+
   protected $lifetime;
-  
-  protected $hash;
-  
+
   protected $time;
-  
-  public function __construct(array $bin, array $options) {
+
+  /**
+   * 实现一个缓存储器
+   *
+   * @param string $bin
+   * @param array $options
+   */
+  public function __construct($bin, array $options) {
     // 缓存容器
     $this->bin = $bin;
     $this->lifetime = isset($options['lifetime']) ? (int)$options['lifetime'] : 0;
-    $this->hash = isset($options['hash']) ? $options['hash'] : self::HASH_CRC32;
-    
+
     $this->time = $_SERVER['REQUEST_TIME'];
   }
-  
+
   /**
    * 根据缓存键名取得容器名称
-   * 
+   *
    * @param string $key
-   * 
+   *
    * @return string
    */
   //public function getBin($key) {
-    
+
   //}
-  
+
 }
 
 /**
  * 文件缓存
- * 
+ *
  * @author realeff
  *
  */
 class FileCache extends AbstractCache implements CacheInterface {
-  
+
   protected $path;
-  
+
   protected $secret;
-  
-  public function __construct(array $bin, array $options = array()) {
+
+  public function __construct($bin, array $options = array()) {
     parent::__construct($bin, $options);
-    
+
     // 指定文件缓存目录位置，如果目录位置是{workspace}则表示指定的缓存位置是当前工作空间路径。
     if (!empty($options['path'])) {
       $this->path = str_replace('{workspace}', $_ENV['workspace'], $options['path']);
@@ -190,11 +363,11 @@ class FileCache extends AbstractCache implements CacheInterface {
       $this->path = $_ENV['workspace'] .'/cache';
     }
     $this->path = $this->check_dir($this->path) ? realpath($this->path) : REALEFF_ROOT .'/data/cache';
-    
+
     // 指定数据文件名加密码，如果指定的secret为FALSE或空，则表示缓存的是静态页面内容。
     $this->secret = isset($options['secret']) ? $options['secret'] : substr($GLOBALS['auth_key'], 0, 8);
   }
-  
+
   protected function check_dir(&$dir) {
     // 如果目录不存在则创建目录
     if (!is_dir($dir)) {
@@ -205,73 +378,72 @@ class FileCache extends AbstractCache implements CacheInterface {
         return FALSE;
       }
     }
-    
+
     if (!is_writable($dir)) {
       if (!@chmod($dir, 0775)) {
         return FALSE;
       }
     }
-    
+
     // 并在目录下建立index.html文件<!DOCTYPE html><title></title>
     if (!is_file("$dir/index.html")) {
       file_put_contents("$dir/index.html", '<!DOCTYPE html><title></title>');
     }
-    
+
     return TRUE;
   }
-  
+
   protected function getFilePath($key) {
     if (empty($key)) {
       return FALSE;
     }
-    
-    // 将key中含有“-/\”字符转换为目录分隔符DIRECTORY_SEPARATOR，并清理字符 ? “ / \ < > * | : 
-    $key = strtr($key, '/\\?"\'<>*|: ', '--_________');
-    
-    $filepath = $this->path;
+
+    // 将key中含有“-/\”字符转换为目录分隔符DIRECTORY_SEPARATOR，并清理字符 ? “ / \ < > * | :
+    $key = strtr($key, '~/\\?"\'<>*.|: ', '---__________');
+
+    $filepath = $this->path .DIRECTORY_SEPARATOR. $this->bin;
+    $this->check_dir($this->path);
+
     $path = strtok($key, '-');
-    if (!in_array($path, $this->bin)) {
-      $path = reset($this->bin);
-    }
-    
+
     while ($path !== FALSE) {
       if ($path) {
         // 检查文件目录
         $this->check_dir($filepath);
         // 追加文件名
-        $filepath .= '/'. $path;
+        $filepath .= DIRECTORY_SEPARATOR. $path;
       }
-      
+
       $path = strtok('-');
     }
-    
+
     if (empty($this->secret)) {
       return $filepath .'.html';
     }
     else {
       $filename = $this->secret .'-cache-'. basename($filepath);
-      
-      return dirname($filepath) .'/'. md5($filename) .'.php';
+
+      return dirname($filepath) .DIRECTORY_SEPARATOR. md5($filename) .'.php';
     }
   }
-  
+
   protected function getFileMeta($filename) {
     if (is_file($filename)) {
       $handle = @fopen($filename, 'rb');
       $buffer = fread($handle, 256);
       fclose($handle);
-      
+
       if (preg_match('/(.*)\r\n<\\?php die\\("Access Denied"\\); \\?>#xxx#\r\n/', $buffer, $matches)) {
         return @unserialize($matches[1]);
       }
     }
-    
+
     return FALSE;
   }
-  
+
   /**
    * 检查缓存文件是否过期，并删除过期的文件。
-   * 
+   *
    * @param string $filename
    */
   protected function check_expire($filename) {
@@ -285,7 +457,7 @@ class FileCache extends AbstractCache implements CacheInterface {
       else if ($this->lifetime > 0) {
         $expire = $mtime + $this->lifetime;
       }
-      
+
       if (!$mtime || ($expire > 0 && $expire < $this->time)) {
         @unlink($filename);
       }
@@ -293,15 +465,15 @@ class FileCache extends AbstractCache implements CacheInterface {
         return TRUE;
       }
     }
-    
+
     return FALSE;
   }
-  
+
   /**
    * 清理目录中所有过期的文件或清理目录中所有的文件
-   * 
+   *
    * @param string $path
-   * @param bool $gc
+   * @param boolean $gc
    */
   protected function clear_dir($path, $gc = TRUE) {
     if (is_dir($path) && $handle = opendir($path)) {
@@ -323,7 +495,7 @@ class FileCache extends AbstractCache implements CacheInterface {
   }
 
   /**
-   * (non-PHPdoc)
+   *
    * @see CacheInterface::delete()
    */
   public function delete($key) {
@@ -332,54 +504,46 @@ class FileCache extends AbstractCache implements CacheInterface {
     if (is_file($filename)) {
       return @unlink($filename);
     }
-    
+
     return FALSE;
   }
 
   /**
-   * (non-PHPdoc)
+   *
    * @see CacheInterface::flush()
    */
   public function flush() {
     // TODO Auto-generated method stub
-    $status = FALSE;
-    
-    foreach ($this->bin as $bin) {
-      $path = $this->path .'/'. $bin;
-      
-      if (is_writable($path)) {
-        $this->clear_dir($path, FALSE);
-        
-        $status = TRUE;
-      }
+    $path = $this->path .'/'. $this->bin;
+
+    if (is_writable($path)) {
+      $this->clear_dir($path, FALSE);
+
+      return TRUE;
     }
-    
-    return $status;
+
+    return FALSE;
   }
 
   /**
-   * (non-PHPdoc)
+   *
    * @see CacheInterface::gc()
    */
   public function gc() {
     // TODO Auto-generated method stub
-    $status = FALSE;
-    
-    foreach ($this->bin as $bin) {
-      $path = $this->path .'/'. $bin;
-      
-      if (is_writable($path)) {
-        $this->clear_dir($path, TRUE);
-        
-        $status = TRUE;
-      }
+    $path = $this->path .'/'. $this->bin;
+
+    if (is_writable($path)) {
+      $this->clear_dir($path, TRUE);
+
+      return TRUE;
     }
-    
-    return $status;
+
+    return FALSE;
   }
 
   /**
-   * (non-PHPdoc)
+   *
    * @see CacheInterface::get()
    */
   public function get($key) {
@@ -390,19 +554,19 @@ class FileCache extends AbstractCache implements CacheInterface {
         $data = file_get_contents($filename);
         if ($data && !empty($this->secret)) {
           $data = preg_replace('/.*\r\n<\\?php die\\("Access Denied"\\); \\?>#xxx#\r\n/', '', $data, 1);
-          
+
           return @unserialize($data);
         }
-        
+
         return $data;
       }
     }
-    
+
     return FALSE;
   }
 
   /**
-   * (non-PHPdoc)
+   *
    * @see CacheInterface::getMulti()
    */
   public function getMulti(array $keys) {
@@ -413,35 +577,69 @@ class FileCache extends AbstractCache implements CacheInterface {
         $items[$key] = $data;
       };
     }
-    
+
     return $items;
   }
 
+  protected function updateData($key, $data) {
+    // TODO Auto-generated method stub
+    $filename = $this->getFilePath($key);
+    if (!file_exists($filename)) {
+      return FALSE;
+    }
+
+    $handle = @fopen($filename, 'r+b');
+    if ($handle) {
+      $status = FALSE;
+
+      if ($header = $this->getFileMeta($filename)) {
+        if (isset($header['expire']) && ($header['expire'] > $this->time || $header['expire'] == 0)) {
+          // 更新写入文件 expire\r\n<?php die(); ?/>\r\n
+          $data = serialize($header) ."\r\n<?php die(\"Access Denied\"); ?>#xxx#\r\n". serialize($data);
+          @ftruncate($handle, 0);
+          $status = @fwrite($handle, $data, strlen($data));
+        }
+      }
+
+      @fclose($handle);
+
+      return (bool)$status;
+    }
+
+    return FALSE;
+  }
+
   /**
-   * (non-PHPdoc)
+   *
    * @see CacheInterface::increment()
    */
   public function increment($key, $offset = 1) {
     // TODO Auto-generated method stub
-    $value = $this->get($key);
-    $value = is_numeric($value) ? intval($value) + $offset : $offset;
-    
-    return $this->set($key, $value) ? $value : FALSE;
+    if ($value = $this->get($key)) {
+      $value = is_numeric($value) ? intval($value) + $offset : $offset;
+
+      return $this->updateData($key, $value) ? $value : FALSE;
+    }
+
+    return FALSE;
   }
-  
+
   /**
-   * (non-PHPdoc)
+   *
    * @see CacheInterface::decrement()
    */
   public function decrement($key, $offset = 1) {
     // TODO Auto-generated method stub
-    $value = $this->get($key);
-    $value = is_numeric($value) ? intval($value) - $offset : $offset;
-    
-    return $this->set($key, $value) ? $value : FALSE;
+    if ($value = $this->get($key)) {
+      $value = is_numeric($value) ? intval($value) - $offset : $offset;
+
+      return $this->updateData($key, $value) ? $value : FALSE;
+    }
+
+    return FALSE;
   }
-  
-  
+
+
   private function _is_empty_dir($path) {
     if (is_dir($path) && $handle = opendir($path)) {
       $empty = TRUE;
@@ -450,41 +648,39 @@ class FileCache extends AbstractCache implements CacheInterface {
           if (is_dir("$path/$file")) {
             $empty = $this->_is_empty_dir("$path/$file");
           }
-          else if (preg_match('/.*\\.php$/', $file) && is_file($file)) {
+          else if (preg_match('/.*\\.php$/', $file) && $this->check_expire($file)) {
             $empty = FALSE;
           }
         }
       }
       closedir($handle);
-      
+
       return $empty;
     }
-    
+
     return TRUE;
   }
 
   /**
-   * (non-PHPdoc)
+   *
    * @see CacheInterface::isEmpty()
    */
   public function isEmpty() {
     // TODO Auto-generated method stub
-    foreach ($this->bin as $bin) {
-      if (!$this->_is_empty_dir($this->path .'/'. $bin)) {
-        return FALSE;
-      };
+    if (!$this->_is_empty_dir($this->path .'/'. $this->bin)) {
+      return FALSE;
     }
-    
+
     return TRUE;
   }
 
   /**
-   * (non-PHPdoc)
+   *
    * @see CacheInterface::set()
    */
   public function set($key, $data, $lifetime = 0) {
     // TODO Auto-generated method stub
-    
+
     // 在数据中追加头信息
     $filename = $this->getFilePath($key);
     $handle = @fopen($filename, 'wb');
@@ -495,19 +691,19 @@ class FileCache extends AbstractCache implements CacheInterface {
         $header['expire'] = $lifetime > 0 ? $this->time + $lifetime : 0;
         $data = serialize($header) ."\r\n<?php die(\"Access Denied\"); ?>#xxx#\r\n". serialize($data);
       }
-      
+
       @ftruncate($handle, 0);
       $status = @fwrite($handle, $data, strlen($data));
       @fclose($handle);
-      
+
       return (bool)$status;
     }
-    
+
     return FALSE;
   }
 
   /**
-   * (non-PHPdoc)
+   *
    * @see CacheInterface::setMulti()
    */
   public function setMulti(array $items, $lifetime = 0) {
@@ -516,291 +712,216 @@ class FileCache extends AbstractCache implements CacheInterface {
     foreach ($items as $key => $data) {
       $status |= $this->set($key, $data, $lifetime);
     }
-    
+
     return $status;
   }
-  
+
 }
+
 
 /**
  * 数据库缓存
- * 
+ *
  * @author realeff
  *
  */
 class DatabaseCache extends AbstractCache implements CacheInterface {
-  
-  protected $db;
-  
-  
-  public function __construct(array $bin, array $options = array()) {
+
+  protected $querier;
+
+
+  public function __construct($bin, array $options = array()) {
     parent::__construct($bin, $options);
-    
-    $this->db = store_get_querier(isset($options['querier']) ? $options['querier'] : REALEFF_QUERIER_CACHE);
+
+    $this->querier = store_getquerier(isset($options['querier']) ? $options['querier'] : REALEFF_QUERIER_CACHE);
   }
-  
-  
-  protected function cutBinKey($key) {
+
+  protected function escapeKey($key) {
     if (empty($key)) {
       return FALSE;
     }
-    
-    // 将key中含有“/\”字符转换为目录分隔符-，并清理字符 ? " ' % * 
-    $key = strtr($key, '/\\?"\'%* ', '--______');
-    $pieces = explode('-', $key, 2);
-    if (empty($pieces)) {
-      $pieces = array(reset($this->bin), $key);
-    }
-    else if (count($pieces) == 1) {
-      array_unshift($pieces, reset($this->bin));
-    }
-    else if (!in_array($pieces[0], $this->bin)) {
-      $pieces[0] = reset($this->bin);
-    }
-    
-    return $pieces;
+
+    // 将key中含有“/\”字符转换为目录分隔符-，并清理字符 ? " ' % *
+    return strtr($key, '/\\?"\'%* ', '--______');
   }
 
   /**
-   * (non-PHPdoc)
+   *
    * @see CacheInterface::delete()
    */
   public function delete($key) {
     // TODO Auto-generated method stub
-    list($bin, $cid) = $this->cutBinKey($key);
-    
-    if (isset($bin)) {
-      $this->db->clear();
-      $this->db->delete($bin)
-               ->where()->compare('cid', $cid)->end()
-               ->end();
-      
-      $this->db->addFilter('remove-cid');
-      return $this->db->execute();
-    }
-    
-    return FALSE;
+    $this->querier->do = 'remove';
+    $this->querier->setParam('id', $this->escapeKey($key));
+
+    return (boolean)$this->querier->execute();
   }
 
   /**
-   * (non-PHPdoc)
+   *
    * @see CacheInterface::flush()
    */
   public function flush() {
     // TODO Auto-generated method stub
-    $status = FALSE;
-    
-    foreach ($this->bin as $bin) {
-      $this->db->clear();
-      $this->db->delete($bin)->end();
-      
-      $this->db->addFilter('flush');
-      $this->db->execute();
-      
-      $status = TRUE;
-    }
-    
-    return $status;
+    $this->querier->do = 'flush';
+
+    return (bool)$this->querier->execute();
   }
 
   /**
-   * (non-PHPdoc)
+   *
    * @see CacheInterface::gc()
    */
   public function gc() {
     // TODO Auto-generated method stub
-    $status = FALSE;
-    
-    foreach ($this->bin as $bin) {
-      $this->db->clear();
-      $this->db->delete($bin)->where()
-               ->compare('expire', 0, QueryCondition::NOT_EQUAL)
-               ->compare('expire', $this->time, QueryCondition::LESS)->end()
-               ->end();
-      
-      $this->db->addFilter('gc');
-      $this->db->execute();
-      
-      $status = TRUE;
-    }
-    
-    return $status;
+    $this->querier->do = 'gc';
+    $this->querier->setParam('expire_0', $this->time);
+
+    return (bool)$this->querier->execute();
   }
 
   /**
-   * (non-PHPdoc)
+   *
    * @see CacheInterface::get()
    */
   public function get($key) {
     // TODO Auto-generated method stub
-    list($bin, $cid) = $this->cutBinKey($key);
-    if (isset($bin)) {
-      $this->db->clear();
-      $this->db->select($bin)
-               ->field('data')->field('serialized')
-               ->where()->compare('cid', $cid)
-               ->add()->compare('expire', 0)
-               ->_OR()
-               ->compare('expire', $this->time, QueryCondition::GREATER_EQUAL)->end()
-               ->end();
-      
-      $this->db->addFilter('serialize-data');
-      $stmt = $this->db->query();
-      if ($cache = $stmt->fetchObject()) {
-        return $cache->serialized ? unserialize($cache->data) : $cache->data;
-      }
+    $this->querier->do = 'get';
+    $this->querier->setParam('id', $this->escapeKey($key))
+                  ->setParam('expire_0', $this->time);
+
+    $stmt = $this->querier->query();
+    if ($cache = $stmt->fetchObject()) {
+      return $cache->serialized ? unserialize($cache->data) : $cache->data;
     }
-    
+
     return FALSE;
   }
 
   /**
-   * (non-PHPdoc)
+   *
    * @see CacheInterface::getMulti()
    */
   public function getMulti(array $keys) {
     // TODO Auto-generated method stub
-    $tkeys = array();
+    if (empty($keys)) {
+      return array();
+    }
+
+    $ids = array();
     foreach ($keys as $key) {
-      list($bin, $cid) = $this->cutBinKey($key);
-      if (isset($bin)) {
-        $tkeys[$bin][$cid] = $key;
-      }
+      $ids[$this->escapeKey($key)] = $key;
     }
-    
+
     $items = array();
-    foreach ($tkeys as $bin => $cids) {
-      $this->db->clear();
-      $this->db->select($bin)
-               ->field(array('cid', 'data', 'serialized'))
-               ->where()->contain('cid', array_keys($cids))
-               ->add()->compare('expire', 0)
-               ->_OR()
-               ->compare('expire', $this->time, QueryCondition::GREATER_EQUAL)->end()
-               ->end();
-      
-      $this->db->addFilter('serialize-data');
-      $stmt = $this->db->query();
-      while ($cache = $stmt->fetchObject()) {
-        $items[$cids[$cache->cid]] = $cache->serialized ? @unserialize($cache->data) : $cache->data;
-      }
+    $this->querier->do = 'getmulti';
+    $this->querier->setParam('id', array_keys($ids))
+                  ->setParam('expire_0', $this->time);
+
+    $stmt = $this->querier->query();
+    while ($cache = $stmt->fetchObject()) {
+      $items[$ids[$cache->id]] = $cache->serialized ? @unserialize($cache->data) : $cache->data;
     }
-    
+
     return $items;
   }
 
   /**
-   * (non-PHPdoc)
+   *
    * @see CacheInterface::increment()
    */
   public function increment($key, $offset = 1) {
     // TODO Auto-generated method stub
-    list($bin, $cid) = $this->cutBinKey($key);
-    if (isset($bin)) {
-      $this->db->clear();
-      $this->db->update($bin)
-               ->expression('data', 'data + :offset', array('offset' => $offset))
-               ->field('serialized', FALSE)->field('expire', 0)
-               ->where()->compare('cid', $cid)->end()
-               ->end();
-      
-      $this->db->addFilter('increment');
-      $this->db->execute();
-      if ($this->db->affected_rows()) {
-        $this->db->clear();
-        $this->db->select($bin)->field('data')
-                 ->where()->compare('cid', $cid)->end()
-                 ->end();
-        
-        $this->db->addFilter('data');
-        return $this->db->query()->fetchField();
-      }
+    $id = $this->escapeKey($key);
+
+    $this->querier->do = 'increment';
+    $this->querier->setParam('offset', $offset)
+                  ->setParam('id', $id)
+                  ->setParam('expire_0', $this->time);
+
+    $this->querier->execute();
+    if ($this->querier->affected_rows()) {
+      $this->querier->do = 'get';
+      $this->querier->setParam('id', $id)
+                    ->setParam('expire_0', $this->time);
+
+      return $this->querier->query()->fetchField();
     }
-    
+
     return FALSE;
   }
-  
+
   /**
-   * (non-PHPdoc)
+   *
    * @see CacheInterface::decrement()
    */
   public function decrement($key, $offset = 1) {
     // TODO Auto-generated method stub
-    list($bin, $cid) = $this->cutBinKey($key);
-    if (isset($bin)) {
-      $this->db->clear();
-      $this->db->update($bin)
-               ->expression('data', 'data - :offset', array('offset' => $offset))
-               ->field('serialized', FALSE)->field('expire', 0)
-               ->where()->compare('cid', $cid)->end()
-               ->end();
-      
-      $this->db->addFilter('decrement');
-      $this->db->execute();
-      if ($this->db->affected_rows()) {
-        $this->db->clear();
-        $this->db->select($bin)->field('data')
-                 ->where()->compare('cid', $cid)->end()
-                 ->end();
-        
-        $this->db->addFilter('data');
-        return $this->db->query()->fetchField();
-      }
+    $id = $this->escapeKey($key);
+
+    $this->querier->do = 'decrement';
+    $this->querier->setParam('offset', $offset)
+                  ->setParam('id', $id)
+                  ->setParam('expire_0', $this->time);
+
+    $this->querier->execute();
+    if ($this->querier->affected_rows()) {
+      $this->querier->do = 'get';
+      $this->querier->setParam('id', $id)
+                    ->setParam('expire_0', $this->time);
+
+      return $this->querier->query()->fetchField();
     }
-    
+
     return FALSE;
   }
 
   /**
-   * (non-PHPdoc)
+   *
    * @see CacheInterface::isEmpty()
    */
   public function isEmpty() {
     // TODO Auto-generated method stub
-    foreach ($this->bin as $bin) {
-      $this->db->clear();
-      $this->db->select($bin)->forCount();
-      
-      $this->db->addFilter('isempty');
-      if ($this->db->query()->fetchField()) {
-        return FALSE;
-      }
+    $this->querier->do = 'count';
+    $this->querier->setFilter('expire_0', $this->time, TRUE);
+
+    if ($this->querier->query()->fetchField()) {
+      return FALSE;
     }
-    
+
     return TRUE;
   }
 
   /**
-   * (non-PHPdoc)
+   *
    * @see CacheInterface::set()
    */
   public function set($key, $data, $lifetime = 0) {
     // TODO Auto-generated method stub
-    list($bin, $cid) = $this->cutBinKey($key);
-    if (isset($bin)) {
-      $fields = array('created' => $this->time);
-      $fields['expire'] = $lifetime > 0 ? $this->time + $lifetime : 0;
-      if (is_string($data)) {
-        $fields['data'] = $data;
-        $fields['serialized'] = FALSE;
-      }
-      else {
-        $fields['data'] = serialize($data);
-        $fields['serialized'] = TRUE;
-      }
-      
-      $this->db->clear();
-      $this->db->insert_unique($bin)
-               ->key('cid', $cid)->fields($fields)
-               ->end();
-      return (bool)$this->db->execute();
+    $id = $this->escapeKey($key);
+
+    $fields = array('created' => $this->time);
+    $fields['expire'] = $lifetime > 0 ? $this->time + $lifetime : 0;
+    if (is_string($data) || is_numeric($data) || is_int($data)
+        || is_float($data) || is_bool($data)) {
+      $fields['data'] = $data;
+      $fields['serialized'] = FALSE;
     }
-    
-    return FALSE;
+    else {
+      $fields['data'] = serialize($data);
+      $fields['serialized'] = TRUE;
+    }
+
+    $this->querier->do = 'set';
+    $this->querier->setParam('id', $id);
+    $this->querier->addParams($fields);
+    $this->querier->addParams($fields);
+
+    return (bool)$this->querier->execute();
   }
 
   /**
-   * (non-PHPdoc)
+   *
    * @see CacheInterface::setMulti()
    */
   public function setMulti(array $items, $lifetime = 0) {
@@ -809,55 +930,110 @@ class DatabaseCache extends AbstractCache implements CacheInterface {
     foreach ($items as $key => $data) {
       $status |= $this->set($key, $data, $lifetime);
     }
-    
+
     return $status;
   }
-  
+
 }
 
 
-include_once REALEFF_ROOT .'/includes/cache/memcache.php';
-
-function cache_get($key, $bin = 'cache') {
-  //$cache = new FileCache(array('data'));
-  //$cache = new DatabaseCache(array('cache'));
-  $cache = new MemcacheCache(array('cache'));
-  $cache->isEmpty();
-  return $cache->get($bin .'-'. $key);
+/**
+ * 获取指定元素缓存数据
+ *
+ * @param string $key
+ * @param string $bin
+ *
+ * @return mixed
+ */
+function cache_get($key, $bin = CACHE_BIN_DEFAULT) {
+  return Cache::getBin($bin)->get($key);
 }
 
-function cache_get_multi(array $keys, $bin = 'cache') {
-  
+/**
+ * 获取多个元素缓存数据
+ *
+ * @param array $keys
+ * @param string $bin
+ *
+ * @return array
+ */
+function cache_get_multi(array $keys, $bin = CACHE_BIN_DEFAULT) {
+  return Cache::getBin($bin)->getMulti($keys);
 }
 
-function cache_set($key, $data, $lifetime = 0, $bin = 'cache') {
-  //$cache = new FileCache(array('data'));
-  //$cache = new DatabaseCache(array('cache'));
-  $cache = new MemcacheCache(array('cache'));
-  
-  return $cache->set($bin .'-'. $key, $data, $lifetime);
+/**
+ * 存储指定元素数据
+ *
+ * @param string $key
+ * @param mixed $data
+ * @param int $lifetime
+ * @param string $bin
+ *
+ * @return boolean
+ */
+function cache_set($key, $data, $lifetime = 0, $bin = CACHE_BIN_DEFAULT) {
+  return Cache::getBin($bin)->set($key, $data, $lifetime);
 }
 
-function cache_set_multi(array $items, $lifetime = 0, $bin = 'cache') {
-  
+/**
+ * 存储多个元素数据
+ *
+ * @param array $items
+ * @param int $lifetime
+ * @param string $bin
+ *
+ * @return boolean
+ */
+function cache_set_multi(array $items, $lifetime = 0, $bin = CACHE_BIN_DEFAULT) {
+  return Cache::getBin($bin)->setMulti($items, $lifetime);
 }
+
+/**
+ * 增加数值元素值
+ *
+ * @param string $key
+ * @param int $offset
+ * @param string $bin
+ *
+ * @return int
+ */
+function cache_increment($key, $offset = 1, $bin = CACHE_BIN_DEFAULT) {
+  return Cache::getBin($bin)->increment($key, $offset);
+}
+
+/**
+ * 减少数值元素值
+ *
+ * @param string $key
+ * @param int $offset
+ * @param string $bin
+ */
+function cache_decrement($key, $offset = 1, $bin = CACHE_BIN_DEFAULT) {
+  return Cache::getBin($bin)->decrement($key, $offset);
+}
+
 
 function cache_clear_all($key = NULL, $bin = NULL) {
-  $clears =& realeff_static(__FUNCTION__, array());
-  
-  $clear_id = $bin .'_'. $key;
-  if (isset($clears[$clear_id])) {
+  $clear =& realeff_static(__FUNCTION__, array());
+
+  if (isset($clear['all'])) {
     return TRUE;
   }
-  
-  //$cache = new FileCache(array('data'));
-  //$cache = new DatabaseCache(array('cache'));
-  $cache = new MemcacheCache(array('cache'));
-  if (isset($bin) && isset($key)) {
-    $clears[$clear_id] = $cache->delete($key);
+
+  if (empty($bin) && empty($key)) {
+    Cache::flush();
+    return $clear['all'] = TRUE;
   }
-  else {
-    $clears[$clear_id] = $cache->flush();
+  else if (empty($bin)) {
+    $bin = CACHE_BIN_DEFAULT;
   }
+
+  $clear_id = $bin .'_'. $key;
+  if (isset($clear[$clear_id])) {
+    return TRUE;
+  }
+
+  $cache = Cache::getBin($bin);
+  return $clear[$clear_id] = isset($key) ? $cache->delete($key) : $cache->flush();
 }
 
